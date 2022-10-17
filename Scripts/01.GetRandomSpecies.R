@@ -4,11 +4,9 @@
 
 ##################
 # Created by Stefano Mammola
-# Updated 17/03/2022
+# Started: 03/10/2020, Helsinki: core loop & test sample.
+# Final sampling: 15/10/2020, Helsinki
 ##################
-
-## Started: 03/10/2020, Helsinki: core loop & test sample.
-## Final sampling: 15/10/2020, Helsinki
 
 ## R script to extract random species from GBIF backbone taxonomy
 
