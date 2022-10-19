@@ -1,26 +1,30 @@
+## ------------------------------------------------------------------------
+## 'Species popularity and research interests across the Tree of Life' 
+## ------------------------------------------------------------------------
+
 ##################
-# Species-level research effort
 # Created by Ricardo Correia
-# Updated 01/11/2021
-# Extracting references from Web of Science
+# Updated 19/11/2022
 ##################
 
-# Load relevant libraries
-library(wosr)
-library(readxl)
-library(tm)
-library(tidyverse)
-library(lubridate)
+# Code to extract data from the Web of Science
 
-# Open list of species
-sp_list <- as.data.frame(read_xlsx("./Data/SampleTREE_171022.xlsx"))
+# Loading R packages ------------------------------------------------------
+
+library("wosr")
+library("readxl")
+library("tm")
+library("tidyverse")
+library("lubridate")
+
+# Read data ---------------------------------------------------------------
+
+sp_list <- as.data.frame(read_xlsx("./Data/SampleTREE.xlsx"))
 head(sp_list)
 
-
 # Open research areas
-ra_list <- as.data.frame(read_xlsx("./Data/wos_research_areas.xlsx"))
+ra_list <- as.data.frame(read_xlsx("./Data/sel_reareas.xlsx"))
 head(ra_list)
-
 
 # Selected research areas
 sel <- readRDS("./Data/sel_rareas.rds")
@@ -35,7 +39,7 @@ colnames(wos_results_sel)[3:ncol(wos_results_sel)] <- sel[,1]
 wos_results_sel[,1] <- sp_list[,6]
 head(wos_results_sel)
 
-#sampling function
+# Sampling function
 extract.WoS <- function (q, s) {
   
   tryCatch(
@@ -66,8 +70,8 @@ extract.WoS <- function (q, s) {
   return(q_sp)
 }
 
+# Extract data ------------------------------------------------------------
 
-# Session authentication
 sid <- auth(username = NULL, password = NULL)
 # Sample WoS
 for (i in 1:nrow(sp_list)){
@@ -99,10 +103,12 @@ for (i in 1:nrow(sp_list)){
   print(paste0("Finished searches for species ", i, " out of ", nrow(sp_list)))
   Sys.sleep(1)
   
-}
+} #end
 
-head(wos_results_sel)
-saveRDS(wos_results_sel, "./Data/wos_results_sel_20221017.rds")
-write.table(wos_results_sel, "./Data/wos_results_sel_20221017.txt", sep="\t", dec=".", row.names = F)
+# Store results
+SampleTree <- left_join(sp_list, wos_results_sel, by = "taxonID")
 
+# Saving
+write.csv2(SampleTre, "./Data/SampleTree.csv", row.names = F)
 
+#end

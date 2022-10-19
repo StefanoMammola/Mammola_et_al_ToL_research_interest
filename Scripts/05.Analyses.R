@@ -15,13 +15,15 @@
 
 # Loading R packages ------------------------------------------------------
 
+library("Amelia")
 library("dplyr")
+library("glmmTMB")
 library("tidyverse") 
 
 # Loading the database  ---------------------------------------------------
 
-db <- read.csv2(file = "./Data/SampleTREE_171022.csv", sep = '\t', dec = ',', header = TRUE, as.is = FALSE)
-db <- db[db$FOSSIL != "1",]
+db <- read.csv2(file = "./Data/SampleTREE_181022.csv", sep = '\t', dec = ',', header = TRUE, as.is = FALSE)
+db <- db[db$FOSSIL != "1",] ; db <- droplevels(db)
 
 # Converting factors to factors
 db$model_organism   <- as.factor(db$model_organism)
@@ -36,7 +38,7 @@ db$color_red        <- as.factor(db$color_red)
 # Data exploration --------------------------------------------------------
 ####################################################################################
 
-# Variable distribution & Collinearity ----------------------------------------------
+# Variable distribution & collinearity ----------------------------------------------
 
 ##########################
 ## Continuous variables ##
@@ -71,14 +73,10 @@ ggplot(db, aes(x = uniqueness_family)) + geom_dotplot(binaxis='x', stackdir='cen
 ggplot(db, aes(x = uniqueness_genus)) + geom_dotplot(binaxis='x', stackdir='center',dotsize=0.1) + theme_bw()
 ggplot(db, aes(x = range_size)) + geom_dotplot(binaxis='x', stackdir='center',dotsize=0.1) + theme_bw()
 ggplot(db, aes(x = size_avg)) + geom_dotplot(binaxis='x', stackdir='center',dotsize=0.1) + theme_bw()
-
-plot(db$size_avg)
-#identify(db$size_avg)
-
-db[1980,] #change to 2.25 m??
+ggplot(db, aes(x = centroid_lat)) + geom_dotplot(binaxis='x', stackdir='center',dotsize=0.1) + theme_bw()
 
 # Correlations 
-db %>% dplyr::select(uniqueness_family, uniqueness_genus, range_size, size_avg) %>% 
+db %>% dplyr::select(uniqueness_family, uniqueness_genus, range_size, size_avg, centroid_lat) %>% 
   GGally::ggpairs() + theme_classic()
 
 #########################
@@ -96,7 +94,6 @@ nlevels(db$order) #Devilish!
 nlevels(db$family)
 
 ## Variables X ##
-
 table(db$model_organism) #not really usable
 table(db$harmful_to_human) #so so
 table(db$human_use) #OK!
@@ -104,13 +101,13 @@ table(db$common_name) #OK!
 table(db$colorful) #OK!
 table(db$color_blu) #OK!
 table(db$color_red) #OK!
+table(db$IUCN) #so so
 
-table(db$IUCN) #OK!
-
-
+# Checking relationships --------------------------------------------------
 
 ggplot(db, aes(x = phylum, y = log(Total_wos+1))) + geom_boxplot() + theme_bw() + coord_flip()
 ggplot(db, aes(x = phylum, y = log(total_wiki_pgviews+1))) + geom_boxplot() + theme_bw() + coord_flip()
+
 
 ggplot(db, aes(x = harmful_to_human, y = log(Total_wos+1))) + geom_boxplot() + theme_bw() + coord_flip()
 ggplot(db, aes(x = human_use, y = log(Total_wos+1))) + geom_boxplot() + theme_bw() + coord_flip()
@@ -121,8 +118,9 @@ ggplot(db, aes(x = color_blu, y = log(Total_wos+1))) + geom_boxplot() + theme_bw
 ggplot(db, aes(x = color_red, y = log(Total_wos+1))) + geom_boxplot() + theme_bw() + coord_flip()
 ggplot(db, aes(x = IUCN, y = log(Total_wos+1))) + geom_boxplot() + theme_bw() + coord_flip()
 
-
-
+####################################################################################
+# Data analysis ---------------------------------------------------------------------
+####################################################################################
 
 # Data transformation -----------------------------------------------------
 
@@ -132,16 +130,16 @@ db$IUCN_rec <- db$IUCN
 levels(db$IUCN_rec) <- c("Endangered", "Unknown", "Endangered", "Endangered", "Least concern","Unknown","Least concern","Endangered")
 table(db$IUCN_rec)
 
+db$IUCN_rec <- relevel(db$IUCN_rec, "Unknown") #setting baseline
 
-
-# Homogenize distirbution
+# Homogenize distribution
 db <- db %>% 
   dplyr::mutate(log_uniqueness_family = log(uniqueness_family+1),
                 log_uniqueness_genus = log(uniqueness_genus+1),
                 log_range_size = log(range_size+1),
                 log_size_avg = log(size_avg+1))
 
-# scaling size
+# scaling size??
 scale_size <- c()
 
 for(i in 1:nlevels(db$phylum)) {
@@ -149,42 +147,93 @@ for(i in 1:nlevels(db$phylum)) {
   scale_size <- append(scale_size, scale(db2$size_avg)[,1]) }
 
 db <- data.frame(db,scale_size)
-plot(log(db$scale_size+1),db$Total_wos)
-plot(db$mean_divergence_time_Mya,db$Total_wos)
 
-plot(db$centroid_lat,db$total_wiki_pgviews)
+# Assembling a final database ---------------------------------------------
+
+#######################
+## Research interets ##
+#######################
+
+dbWOS2 <- db %>% dplyr::select(WOS = Total_wos,
+                            #wiki = wiki_mean_month_pgviews,
+                            kingdom,
+                            phylum,
+                            class,
+                            order,
+                            family,
+                            harmful_to_human,
+                            human_use,
+                            common_name,
+                            colorful,
+                            color_blu,
+                            color_red,
+                            IUCN_rec,
+                            centroid_lat,
+                            starts_with("log_"))
+
+# Scaling variables 
+dbWOS2 <- dbWOS2 %>% dplyr::select(-c(WOS)) %>%
+  mutate_if(is.numeric, ~ scale(., center = TRUE, scale = TRUE)) %>% 
+  cbind(WOS = dbWOS2$WOS, .)
+
+# Missing data
+Amelia::missmap(dbWOS2)
+dbWOS <- na.omit(dbWOS2)
+
+# Outliers
+
+dbWOS <- dbWOS[dbWOS$WOS < 2000,]
+
+# Setting formula ---------------------------------------------------------
+
+nlevels(dbWOS$phylum)
+nlevels(dbWOS$class)
+nlevels(dbWOS$order)
+nlevels(dbWOS$family)
+
+model.formula <- as.formula(paste0("WOS ~",
+                                   paste(colnames(dbWOS)[7:ncol(dbWOS)], collapse = " + "),
+                                   "+ (1 | phylum) + (1 | class) + (1 | order) + (1 | family)"))
 
 
 
+(M1 <- glmmTMB::glmmTMB(model.formula,
+                        family=poisson, data=dbWOS))
 
-# Relationships
+# Is the model overdispersed?
+performance::check_overdispersion(M1)  
 
-ggplot(db, aes(x = phylum, y = log(Total_wos+1))) + geom_boxplot() + theme_bw() + coord_flip()
-ggplot(db, aes(x = phylum, y = log(total_wiki_pgviews+1))) + geom_boxplot() + theme_bw() + coord_flip()
+(M2 <- glmmTMB::glmmTMB(model.formula,
+               family = nbinom1, data = dbWOS)) #control=glmmTMBControl(optimizer = optim, optArgs = list(method="BFGS"))
 
-ggplot(db, aes(x = harmful_to_human, y = log(Total_wos+1))) + geom_boxplot() + theme_bw() + coord_flip()
-ggplot(db, aes(x = human_use, y = log(Total_wos+1))) + geom_boxplot() + theme_bw() + coord_flip()
-ggplot(db, aes(x = model_organism, y = log(Total_wos+1))) + geom_boxplot() + theme_bw() + coord_flip()
-ggplot(db, aes(x = common_name, y = log(Total_wos+1))) + geom_boxplot() + theme_bw() + coord_flip()
-ggplot(db, aes(x = colorful, y = log(Total_wos+1))) + geom_boxplot() + theme_bw() + coord_flip()
-ggplot(db, aes(x = color_blu, y = log(Total_wos+1))) + geom_boxplot() + theme_bw() + coord_flip()
-ggplot(db, aes(x = color_red, y = log(Total_wos+1))) + geom_boxplot() + theme_bw() + coord_flip()
-ggplot(db, aes(x = IUCN, y = log(Total_wos+1))) + geom_boxplot() + theme_bw() + coord_flip()
+performance::check_model(M2)                            
+
+summary(M2)
+
+# A general look
+dbWOS %>% ggplot2::ggplot(aes(x = centroid_lat, y = WOS)) +
+  geom_point(col = "grey10", fill = "grey30", size = 3, shape = 21, alpha = 0.3)+
+  geom_smooth(method = "gam",  se = TRUE, 
+              formula = y ~ s(x),
+              method.args = list(family = poisson)) +
+  theme_classic() #Vague problem at the tail of the distribution, but overall OK!
+
+colnames(dbWOS)
+
+# A general look
+dbWOS %>% ggplot2::ggplot(aes(x = log_size_avg, y = WOS)) +
+  geom_point(col = "grey10", fill = "grey30", size = 3, shape = 21, alpha = 0.3)+
+  geom_smooth(method = "gam",  se = TRUE, 
+              formula = y ~ s(x),
+              method.args = list(family = poisson)) +
+  theme_classic() #Vague problem at the tail of the distribution, but overall OK!
 
 
-ggplot(db, aes(x = harmful_to_human, y = log(total_wiki_pgviews+1))) + geom_boxplot() + theme_bw() + coord_flip()
-ggplot(db, aes(x = human_use, y = log(total_wiki_pgviews+1))) + geom_boxplot() + theme_bw() + coord_flip()
-ggplot(db, aes(x = model_organism, y = log(total_wiki_pgviews+1))) + geom_boxplot() + theme_bw() + coord_flip()
-ggplot(db, aes(x = common_name, y = log(total_wiki_pgviews+1))) + geom_boxplot() + theme_bw() + coord_flip()
-ggplot(db, aes(x = colorful, y = log(total_wiki_pgviews+1))) + geom_boxplot() + theme_bw() + coord_flip()
-ggplot(db, aes(x = color_blu, y = log(total_wiki_pgviews+1))) + geom_boxplot() + theme_bw() + coord_flip()
-ggplot(db, aes(x = color_red, y = log(total_wiki_pgviews+1))) + geom_boxplot() + theme_bw() + coord_flip()
-ggplot(db, aes(x = IUCN, y = log(total_wiki_pgviews+1))) + geom_boxplot() + theme_bw() + coord_flip()
-
-db %>% dplyr::select(size_avg, mean_divergence_time_Mya, n_occurrences, range_size, range_size_AOO.y, range_size_MCP.y) %>% 
-  GGally::ggpairs() + theme_classic()
-
-
-# Regression analyses -----------------------------------------------------
-
+# A general look
+dbWOS %>% ggplot2::ggplot(aes(x = log_range_size, y = WOS)) +
+  geom_point(col = "grey10", fill = "grey30", size = 3, shape = 21, alpha = 0.3)+
+  geom_smooth(method = "lm",  se = TRUE, 
+              formula = y ~ x,
+              method.args = list(family = poisson)) +
+  theme_classic() #Vague problem at the tail of the distribution, but overall OK!
 
