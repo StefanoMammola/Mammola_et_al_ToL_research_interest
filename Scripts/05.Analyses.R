@@ -22,8 +22,7 @@ library("tidyverse")
 
 # Loading the database  ---------------------------------------------------
 
-db <- read.csv2(file = "./Data/SampleTREE_181022.csv", sep = '\t', dec = ',', header = TRUE, as.is = FALSE)
-db <- db[db$FOSSIL != "1",] ; db <- droplevels(db)
+db <- read.csv2(file = "./Data/SampleTREE_191022.csv", sep = '\t', dec = ',', header = TRUE, as.is = FALSE)
 
 # Converting factors to factors
 db$model_organism   <- as.factor(db$model_organism)
@@ -67,16 +66,17 @@ db %>% dplyr::select(Total_wos, total_wiki_pgviews, wiki_langs, wiki_mean_month_
   GGally::ggpairs() + theme_classic()
 
 ## Variables X ##
-
+colnames(db)
 # Distribution 
 ggplot(db, aes(x = uniqueness_family)) + geom_dotplot(binaxis='x', stackdir='center',dotsize=0.1) + theme_bw()
 ggplot(db, aes(x = uniqueness_genus)) + geom_dotplot(binaxis='x', stackdir='center',dotsize=0.1) + theme_bw()
 ggplot(db, aes(x = range_size)) + geom_dotplot(binaxis='x', stackdir='center',dotsize=0.1) + theme_bw()
 ggplot(db, aes(x = size_avg)) + geom_dotplot(binaxis='x', stackdir='center',dotsize=0.1) + theme_bw()
 ggplot(db, aes(x = centroid_lat)) + geom_dotplot(binaxis='x', stackdir='center',dotsize=0.1) + theme_bw()
+ggplot(db, aes(x = mean_divergence_time_Mya)) + geom_dotplot(binaxis='x', stackdir='center',dotsize=0.1) + theme_bw()
 
 # Correlations 
-db %>% dplyr::select(uniqueness_family, uniqueness_genus, range_size, size_avg, centroid_lat) %>% 
+db %>% dplyr::select(uniqueness_family, uniqueness_genus, range_size, size_avg, centroid_lat, mean_divergence_time_Mya) %>% 
   GGally::ggpairs() + theme_classic()
 
 #########################
@@ -102,12 +102,12 @@ table(db$colorful) #OK!
 table(db$color_blu) #OK!
 table(db$color_red) #OK!
 table(db$IUCN) #so so
+table(db$domain) # so so
 
 # Checking relationships --------------------------------------------------
 
 ggplot(db, aes(x = phylum, y = log(Total_wos+1))) + geom_boxplot() + theme_bw() + coord_flip()
 ggplot(db, aes(x = phylum, y = log(total_wiki_pgviews+1))) + geom_boxplot() + theme_bw() + coord_flip()
-
 
 ggplot(db, aes(x = harmful_to_human, y = log(Total_wos+1))) + geom_boxplot() + theme_bw() + coord_flip()
 ggplot(db, aes(x = human_use, y = log(Total_wos+1))) + geom_boxplot() + theme_bw() + coord_flip()
@@ -132,12 +132,21 @@ table(db$IUCN_rec)
 
 db$IUCN_rec <- relevel(db$IUCN_rec, "Unknown") #setting baseline
 
+# Balancing levels Domain
+db$domain_rec <- db$domain
+
+levels(db$domain_rec) <- c("freshwater","freshwater","aquatic + terrestrial","aquatic + terrestrial",
+                       "aquatic", "aquatic + terrestrial", "terrestrial", "aquatic", "terrestrial")
+
+db$domain_rec <- relevel(db$domain_rec, "aquatic + terrestrial") #setting baseline
+
 # Homogenize distribution
 db <- db %>% 
   dplyr::mutate(log_uniqueness_family = log(uniqueness_family+1),
                 log_uniqueness_genus = log(uniqueness_genus+1),
                 log_range_size = log(range_size+1),
-                log_size_avg = log(size_avg+1))
+                log_size_avg = log(size_avg+1),
+                log_distance_human = mean_divergence_time_Mya)
 
 # scaling size??
 scale_size <- c()
@@ -168,6 +177,7 @@ dbWOS2 <- db %>% dplyr::select(WOS = Total_wos,
                             color_blu,
                             color_red,
                             IUCN_rec,
+                            domain_rec,
                             centroid_lat,
                             starts_with("log_"))
 
@@ -210,14 +220,17 @@ performance::check_model(M2)
 
 summary(M2)
 
+sjPlot::plot_model(M2, sort.est = TRUE, se = TRUE,
+                   vline.color ="grey70",
+                   show.values = TRUE, value.offset = .3) + theme_bw()
+
 # A general look
 dbWOS %>% ggplot2::ggplot(aes(x = centroid_lat, y = WOS)) +
   geom_point(col = "grey10", fill = "grey30", size = 3, shape = 21, alpha = 0.3)+
   geom_smooth(method = "gam",  se = TRUE, 
               formula = y ~ s(x),
               method.args = list(family = poisson)) +
-  theme_classic() #Vague problem at the tail of the distribution, but overall OK!
-
+  theme_classic() 
 colnames(dbWOS)
 
 # A general look
@@ -226,14 +239,66 @@ dbWOS %>% ggplot2::ggplot(aes(x = log_size_avg, y = WOS)) +
   geom_smooth(method = "gam",  se = TRUE, 
               formula = y ~ s(x),
               method.args = list(family = poisson)) +
-  theme_classic() #Vague problem at the tail of the distribution, but overall OK!
-
-
+  theme_classic() 
 # A general look
 dbWOS %>% ggplot2::ggplot(aes(x = log_range_size, y = WOS)) +
   geom_point(col = "grey10", fill = "grey30", size = 3, shape = 21, alpha = 0.3)+
   geom_smooth(method = "lm",  se = TRUE, 
               formula = y ~ x,
               method.args = list(family = poisson)) +
-  theme_classic() #Vague problem at the tail of the distribution, but overall OK!
+  theme_classic() 
+
+######################
+## Popular interets ##
+######################
+
+dbWIKI2 <- db %>% dplyr::select(wiki = wiki_langs,
+                               kingdom,
+                               phylum,
+                               class,
+                               order,
+                               family,
+                               harmful_to_human,
+                               human_use,
+                               common_name,
+                               colorful,
+                               color_blu,
+                               color_red,
+                               IUCN_rec,
+                               domain_rec,
+                               centroid_lat,
+                               starts_with("log_"))
+
+# Scaling variables 
+dbWIKI2 <- dbWIKI2 %>% dplyr::select(-c(wiki)) %>%
+  mutate_if(is.numeric, ~ scale(., center = TRUE, scale = TRUE)) %>% 
+  cbind(wiki = dbWIKI2$wiki, .)
+
+# Missing data
+Amelia::missmap(dbWIKI2)
+dbWIKI <- na.omit(dbWIKI2)
+
+
+model.formula <- as.formula(paste0("wiki ~",
+                                   paste(colnames(dbWOS)[7:ncol(dbWOS)], collapse = " + "),
+                                   "+ (1 | phylum) + (1 | class) + (1 | order) + (1 | family)"))
+
+
+
+(M3 <- glmmTMB::glmmTMB(model.formula,
+                        family = poisson, data = dbWIKI))
+
+# Is the model overdispersed?
+performance::check_overdispersion(M3)  
+
+(M4 <- glmmTMB::glmmTMB(model.formula,
+                        family = nbinom1, data = dbWIKI)) #control=glmmTMBControl(optimizer = optim, optArgs = list(method="BFGS"))
+
+performance::check_model(M4)                            
+
+summary(M4)
+
+sjPlot::plot_model(M4, sort.est = TRUE, se = TRUE,
+                   vline.color ="grey70",
+                   show.values = TRUE, value.offset = .3) + theme_bw()
 
