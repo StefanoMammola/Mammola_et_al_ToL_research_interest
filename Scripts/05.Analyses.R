@@ -54,7 +54,6 @@ range(db$wiki_mean_month_pgviews, na.rm = TRUE) ; median(db$wiki_mean_month_pgvi
 
 # Distribution
 ggplot(db, aes(x = Total_wos)) + geom_dotplot(binaxis='x', stackdir='center',dotsize=0.1) + theme_bw()
-ggplot(db, aes(x = Total_wos)) + geom_histogram(bins = 100) + theme_bw()
 
 ggplot(db, aes(x = total_wiki_pgviews)) + geom_dotplot(binaxis='x', stackdir='center',dotsize=0.1) + theme_bw()
 ggplot(db, aes(x = wiki_langs)) + geom_dotplot(binaxis='x', stackdir='center',dotsize=0.1) + theme_bw()
@@ -252,7 +251,7 @@ dbWOS %>% ggplot2::ggplot(aes(x = log_range_size, y = WOS)) +
 ## Popular interets ##
 ######################
 
-dbWIKI2 <- db %>% dplyr::select(wiki = wiki_langs,
+dbWIKI2 <- db %>% dplyr::select(wiki = total_wiki_pgviews,
                                kingdom,
                                phylum,
                                class,
@@ -278,11 +277,9 @@ dbWIKI2 <- dbWIKI2 %>% dplyr::select(-c(wiki)) %>%
 Amelia::missmap(dbWIKI2)
 dbWIKI <- na.omit(dbWIKI2)
 
-
 model.formula <- as.formula(paste0("wiki ~",
                                    paste(colnames(dbWOS)[7:ncol(dbWOS)], collapse = " + "),
                                    "+ (1 | phylum) + (1 | class) + (1 | order) + (1 | family)"))
-
 
 
 (M3 <- glmmTMB::glmmTMB(model.formula,
@@ -292,7 +289,8 @@ model.formula <- as.formula(paste0("wiki ~",
 performance::check_overdispersion(M3)  
 
 (M4 <- glmmTMB::glmmTMB(model.formula,
-                        family = nbinom1, data = dbWIKI)) #control=glmmTMBControl(optimizer = optim, optArgs = list(method="BFGS"))
+                        family = nbinom1, data = dbWIKI)) 
+#control=glmmTMBControl(optimizer = optim, optArgs = list(method="BFGS"))
 
 performance::check_model(M4)                            
 
@@ -301,4 +299,3 @@ summary(M4)
 sjPlot::plot_model(M4, sort.est = TRUE, se = TRUE,
                    vline.color ="grey70",
                    show.values = TRUE, value.offset = .3) + theme_bw()
-
