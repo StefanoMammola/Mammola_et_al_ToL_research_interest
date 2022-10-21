@@ -461,15 +461,11 @@ cor_plot <- ggplot() +
   
   scale_color_manual("",values = custom_color)+
   theme_classic() + theme(legend.position = "none",
-        axis.text.y=element_text(size=10, angle=0,hjust = 0.5,colour ="grey20"),
-        axis.title.y=element_text(size=10, angle=90,colour ="black"),
-        axis.ticks.y = element_line(color = "grey20",size = 0.7),
-        axis.line.y = element_line(color = "grey20",size = 0.7, linetype = "solid"),
-        
-        axis.text.x = element_text(size = 10,angle=0,vjust=0.5,colour = "grey20"),
-        axis.title.x=element_text(size=10,colour = "black"),
-        axis.ticks.x = element_line(color = "grey20",size = 0.7),
-        axis.line.x = element_line(color = "grey20",size = 0.7, linetype = "solid"))
+                          axis.text.y = element_text(size = 10,angle=0,vjust=0.5),
+                          axis.ticks.y = element_line(color = "grey20",size = 0.7),
+                          axis.line.y = element_line(color = "grey20",size = 0.7, linetype = "solid"),
+                          axis.ticks.x = element_line(color = "grey20",size = 0.7),
+                          axis.line.x = element_line(color = "grey20",size = 0.7, linetype = "solid"))
 
 density_WOS <- db %>% ggplot(aes(x = log(Total_wos+1), 
                              color = kingdom, fill = kingdom)) +
@@ -511,10 +507,9 @@ density_WIKI <- db %>% ggplot(aes(x = log(total_wiki_pgviews+1),
         axis.ticks.x = element_line(color = "grey20",size = 0.7),
         axis.line.x = element_line(color = "grey20",size = 0.7, linetype = "solid"))
 
+pdf(file = "./Figures/Figure 1.pdf", width = 7, height = 5)
+
 (plot_cor <- gridExtra::grid.arrange(density_WOS, blankPlot, cor_plot, density_WIKI, 
                           ncol=2, nrow=2, widths=c(3, 1.7), heights=c(1.7, 3)) )
 
-
-pdf(file = "Figure 1.pdf", width = 14, height = 14)
-plot_cor
 dev.off()
