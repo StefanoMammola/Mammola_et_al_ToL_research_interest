@@ -73,7 +73,6 @@ db %>% dplyr::select(Total_wos, total_wiki_pgviews, wiki_langs, wiki_mean_month_
   GGally::ggpairs() + theme_classic()
 
 ## Variables X ##
-colnames(db)
 # Distribution 
 ggplot(db, aes(x = uniqueness_family)) + geom_dotplot(binaxis='x', stackdir='center',dotsize=0.1) + theme_bw()
 ggplot(db, aes(x = uniqueness_genus)) + geom_dotplot(binaxis='x', stackdir='center',dotsize=0.1) + theme_bw()
@@ -153,7 +152,7 @@ db <- db %>%
                 log_uniqueness_genus = log(uniqueness_genus+1),
                 log_range_size = log(range_size+1),
                 log_size_avg = log(size_avg+1),
-                log_distance_human = mean_divergence_time_Mya)
+                log_distance_human = log(mean_divergence_time_Mya+1))
 
 # scaling size and range size by group
 scaled_size <- c()
@@ -169,7 +168,7 @@ for(i in 1:nlevels(db$phylum)) {
 db <- data.frame(db, scaled_size, scaled_range_size)
 
 db$scaled_uniqueness_family <- scale(db$log_uniqueness_family, center = TRUE, scale = TRUE)
-db$scaled_uniqueness_genus <- scale(db$log_uniqueness_genus, center = TRUE, scale = TRUE)
+db$scaled_uniqueness_genus  <- scale(db$log_uniqueness_genus, center = TRUE, scale = TRUE)
 
 # Assembling a final database ---------------------------------------------
 
@@ -194,7 +193,8 @@ dbWOS2 <- db %>% dplyr::select(WOS = Total_wos,
                             color_red,
                             IUCN_rec,
                             domain_rec,
-                            starts_with("scaled_")) 
+                            starts_with("scaled_"),
+                            log_distance_human) 
 
 # Missing data
 Amelia::missmap(dbWOS2)
@@ -220,7 +220,6 @@ model.formula <- as.formula(paste0("WOS ~",
                                    #"+ exp(cor.str + 0 | group)",
                                    "+ (1 | phylum) + (1 | class) + (1 | order) + (1 | family)"))
 
-
 #model.formula <- as.formula("WOS ~ 1 + exp(cor.str + 0 | group)")
 
 # Fit the model -----------------------------------------------------------
@@ -242,6 +241,18 @@ M1_zip <- glmmTMB::glmmTMB(model.formula,
                         family=poisson, 
                         ziformula = ~1,
                         data=dbWOS)
+
+
+# dbWOS$WOS2 <- ifelse(dbWOS$WOS > 0, 1, 0)
+# model.formula2 <- as.formula(paste0("WOS2 ~",
+#                                    paste(colnames(dbWOS)[9:ncol(dbWOS)], collapse = " + "),
+#                                    #"+ exp(cor.str + 0 | group)",
+#                                    "+ (1 | phylum) + (1 | class) + (1 | order) + (1 | family)"))
+# checking <- glmmTMB::glmmTMB(model.formula2,
+#                  family = binomial,
+#                  data=dbWOS)
+# 
+# summary(checking)
 
 # Is the model overdispersed?
 performance::check_overdispersion(M1_zip)  
@@ -276,6 +287,10 @@ performance::check_model(M1_hnbinom1)
 
 # R^2
 my.r2(M1_hnbinom1)
+my.r2(M1_nbinom1)
+
+performance::check_model(M1_nbinom1)    
+
 
 # A general look
 sjPlot::plot_model(M1_hnbinom1, sort.est = TRUE, se = TRUE,
@@ -285,6 +300,9 @@ sjPlot::plot_model(M1_hnbinom1, sort.est = TRUE, se = TRUE,
 sjPlot::plot_model(M1_nbinom2, sort.est = TRUE, se = TRUE,
                    vline.color ="grey70",
                    show.values = TRUE, value.offset = .3) + theme_bw()
+
+
+
 
 
 parameters::parameters(M1_hnbinom1)
@@ -328,7 +346,7 @@ colnames(db)
 ## Popular interets ##
 ######################
 
-dbWIKI2 <- db %>% dplyr::select(wiki = total_wiki_pgviews,
+dbWIKI2 <- db %>% dplyr::select(wiki = wiki_mean_month_pgviews,
                                 kingdom,
                                 phylum,
                                 class,
@@ -379,5 +397,124 @@ sjPlot::plot_model(M4, sort.est = TRUE, se = TRUE,
                    vline.color ="grey70",
                    show.values = TRUE, value.offset = .3) + theme_bw()
 
+####################################################################################
+# Figures --------------------------------------------------------------------------
+####################################################################################
+
+# Figure 1 ----------------------------------------------------------------
+
+custom_color <- c("grey50","purple","green")
+
+blankPlot <- db %>% ggplot(aes(x = log(Total_wos+1), 
+                               y = log(total_wiki_pgviews+1), 
+                               color = kingdom)) + 
+  geom_point(alpha = 1, size = 5)+
+  geom_point(color = "white", size = 6)+
+  scale_color_manual("", values = custom_color)+
+  geom_blank(aes(1,1))+
+  theme(legend.position = c(0.5, 0.5),
+        legend.background = element_rect(color = "white", 
+                                         fill = "transparent", 
+                                         size = 2, linetype = "blank"),
+        plot.background = element_blank(), 
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(), 
+        panel.border = element_blank(),
+        panel.background = element_blank(),
+        axis.title.x = element_blank(),
+        axis.title.y = element_blank(),
+        axis.text.x = element_blank(), 
+        axis.text.y = element_blank(),
+        axis.ticks = element_blank()
+  )
 
 
+# Summarize centroid
+
+centroid = db %>% dplyr::group_by(phylum) %>% summarize(mean_WOS = mean( log(Total_wos+1), na.rm = TRUE),
+                                              mean_WIKI = mean( log(total_wiki_pgviews+1), na.rm = TRUE))
+cor_plot <- ggplot() + 
+  xlab("N° papers in the Web of Science [logarithm]")+
+  ylab("N° views in Wikipedia [logarithm]")+
+  geom_point(data = db, aes(x = log(Total_wos+1), y = log(total_wiki_pgviews+1), color = kingdom),
+             alpha = 0.4, size = 2)+
+  geom_smooth(data = db, aes(x = log(Total_wos+1), y = log(total_wiki_pgviews+1)),
+              method = "gam", se = T, fill = "grey30", col = "grey20", size = 0.7, alpha=0.4)+
+
+  # geom_text(data = centroid,
+  #           aes(x = mean_WOS, y = mean_WIKI,
+  #               label = ifelse(mean_WOS > 0, as.character(phylum),'')),
+  #           hjust = 1, vjust = -0.8, fontface="italic", size = 3)+
+  # 
+  # geom_point(data = centroid, 
+  #            aes(x = mean_WOS, y = mean_WIKI),
+  #            alpha = 1, size = 3, color = "black", shape = 2)+
+  # 
+  scale_x_continuous(  
+    labels=c("0", "3", "6","9"),
+    breaks=c(0,3,6,9))+
+  
+  scale_y_continuous(  
+    labels=c("0", "5", "10","15","20"),
+    breaks=c(0,5,10,15,20))+
+  
+  
+  scale_color_manual("",values = custom_color)+
+  theme_classic() + theme(legend.position = "none",
+        axis.text.y=element_text(size=10, angle=0,hjust = 0.5,colour ="grey20"),
+        axis.title.y=element_text(size=10, angle=90,colour ="black"),
+        axis.ticks.y = element_line(color = "grey20",size = 0.7),
+        axis.line.y = element_line(color = "grey20",size = 0.7, linetype = "solid"),
+        
+        axis.text.x = element_text(size = 10,angle=0,vjust=0.5,colour = "grey20"),
+        axis.title.x=element_text(size=10,colour = "black"),
+        axis.ticks.x = element_line(color = "grey20",size = 0.7),
+        axis.line.x = element_line(color = "grey20",size = 0.7, linetype = "solid"))
+
+density_WOS <- db %>% ggplot(aes(x = log(Total_wos+1), 
+                             color = kingdom, fill = kingdom)) +
+  geom_density(alpha = 0.1)+
+  
+  scale_x_continuous(  
+    labels=c("0", "3", "6","9"),
+    breaks=c(0,3,6,9))+
+  
+  scale_color_manual(values = custom_color)+
+  scale_fill_manual(values = custom_color)+
+  ylab("Density")+
+  xlab(element_blank())+
+  theme_classic()+
+  theme(legend.position = "none", axis.text.x = element_text(size = 10, angle=0, vjust=0.5,colour = "grey30"),
+        axis.ticks.y = element_line(color = "grey20",size = 0.7),
+        axis.line.y = element_line(color = "grey20",size = 0.7, linetype = "solid"),
+        axis.ticks.x = element_line(color = "grey20",size = 0.7),
+        axis.line.x = element_line(color = "grey20",size = 0.7, linetype = "solid"))
+
+density_WIKI <- db %>% ggplot(aes(x = log(total_wiki_pgviews+1), 
+                                  color = kingdom, fill = kingdom)) +
+  geom_density(alpha = 0.1)+
+  scale_color_manual(values = custom_color)+
+  scale_fill_manual(values = custom_color)+
+  
+  scale_x_continuous(  
+    labels=c("0", "5", "10","15","20"),
+    breaks=c(0,5,10,15,20))+
+
+  ylab("Density")+
+  xlab(element_blank())+
+  theme_classic() + coord_flip() + 
+  
+  theme(legend.position = "none",
+        axis.text.y = element_text(size = 10,angle=0,vjust=0.5),
+        axis.ticks.y = element_line(color = "grey20",size = 0.7),
+        axis.line.y = element_line(color = "grey20",size = 0.7, linetype = "solid"),
+        axis.ticks.x = element_line(color = "grey20",size = 0.7),
+        axis.line.x = element_line(color = "grey20",size = 0.7, linetype = "solid"))
+
+(plot_cor <- gridExtra::grid.arrange(density_WOS, blankPlot, cor_plot, density_WIKI, 
+                          ncol=2, nrow=2, widths=c(3, 1.7), heights=c(1.7, 3)) )
+
+
+pdf(file = "Figure 1.pdf", width = 14, height = 14)
+plot_cor
+dev.off()
