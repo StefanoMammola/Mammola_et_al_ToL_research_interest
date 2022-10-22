@@ -141,8 +141,8 @@ db$IUCN_rec <- relevel(db$IUCN_rec, "Unknown") #setting baseline
 # Balancing levels Domain
 db$domain_rec <- db$domain
 
-levels(db$domain_rec) <- c("freshwater","freshwater","aquatic + terrestrial","aquatic + terrestrial",
-                       "aquatic", "aquatic + terrestrial", "terrestrial", "aquatic", "terrestrial")
+levels(db$domain_rec) <- c("aquatic","aquatic","aquatic + terrestrial","aquatic + terrestrial",
+                           "aquatic", "aquatic + terrestrial", "terrestrial", "aquatic", "terrestrial")
 
 db$domain_rec <- relevel(db$domain_rec, "aquatic + terrestrial") #setting baseline
 
@@ -152,7 +152,7 @@ db <- db %>%
                 log_uniqueness_genus = log(uniqueness_genus+1),
                 log_range_size = log(range_size+1),
                 log_size_avg = log(size_avg+1),
-                log_distance_human = log(mean_divergence_time_Mya+1))
+                log_distance_hu = log(mean_divergence_time_Mya+1))
 
 # scaling size and range size by group
 scaled_size <- c()
@@ -165,10 +165,13 @@ for(i in 1:nlevels(db$phylum)) {
   db2 <- db[db$phylum == levels(db$phylum)[i], ]
   scaled_range_size <- append(scaled_range_size, scale(db2$log_range_size)[,1]) }
 
-db <- data.frame(db, scaled_size, scaled_range_size)
+db <- data.frame(db, scaled_size, scaled_range_size) ; rm(db2, scaled_size, scaled_range_size, i)
 
-db$scaled_uniqueness_family <- scale(db$log_uniqueness_family, center = TRUE, scale = TRUE)
-db$scaled_uniqueness_genus  <- scale(db$log_uniqueness_genus, center = TRUE, scale = TRUE)
+db$scaled_uniqueness_family   <- scale(db$log_uniqueness_family, center = TRUE, scale = TRUE)
+db$scaled_uniqueness_genus    <- scale(db$log_uniqueness_genus, center = TRUE, scale = TRUE)
+db$scaled_log_distance_human  <- scale(db$log_distance_hu, center = TRUE, scale = TRUE)
+
+
 
 # Assembling a final database ---------------------------------------------
 
@@ -177,36 +180,28 @@ db$scaled_uniqueness_genus  <- scale(db$log_uniqueness_genus, center = TRUE, sca
 #######################
 
 dbWOS2 <- db %>% dplyr::select(WOS = Total_wos,
-                            #wiki = wiki_mean_month_pgviews,
-                            kingdom,
-                            phylum,
-                            class,
-                            order,
-                            family,
-                            y = centroid_lat,
-                            x = centroid_long,
-                            harmful_to_human,
-                            human_use,
-                            common_name,
-                            colorful,
-                            color_blu,
-                            color_red,
-                            IUCN_rec,
-                            domain_rec,
-                            starts_with("scaled_"),
-                            log_distance_human) 
+                               kingdom,
+                               phylum,
+                               class,
+                               order,
+                               family,
+                               #y = centroid_lat,
+                               # x = centroid_long,
+                               harmful_to_human,
+                               human_use,
+                               common_name,
+                               colorful,
+                               color_blu,
+                               color_red,
+                               IUCN_rec,
+                               domain_rec,
+                               starts_with("scaled_")) 
 
 # Missing data
 Amelia::missmap(dbWOS2)
 dbWOS <- na.omit(dbWOS2)
 
-# Outliers
-dev.off()
-plot(dbWOS$WOS)
-dbWOS <- dbWOS[dbWOS$WOS < 4000,]
-
 # Setting formula ---------------------------------------------------------
-
 nlevels(dbWOS$phylum)
 nlevels(dbWOS$class)
 nlevels(dbWOS$order)
@@ -215,65 +210,50 @@ nlevels(dbWOS$family)
 # dbWOS$cor.str <- numFactor(dbWOS$x,dbWOS$y)
 # dbWOS$group   <- factor(rep(1, nrow(dbWOS)))
 
-model.formula <- as.formula(paste0("WOS ~",
-                                   paste(colnames(dbWOS)[9:ncol(dbWOS)], collapse = " + "),
+model.formula.WOS <- as.formula(paste0("WOS ~",
+                                   paste(colnames(dbWOS)[7:ncol(dbWOS)], collapse = " + "),
                                    #"+ exp(cor.str + 0 | group)",
                                    "+ (1 | phylum) + (1 | class) + (1 | order) + (1 | family)"))
-
-#model.formula <- as.formula("WOS ~ 1 + exp(cor.str + 0 | group)")
 
 # Fit the model -----------------------------------------------------------
 
 # First model
-M1 <- glmmTMB::glmmTMB(model.formula,
+M1 <- glmmTMB::glmmTMB(model.formula.WOS,
                        family = poisson, 
                        data = dbWOS)
-
+                       
 # Is the model overdispersed?
-performance::check_overdispersion(M1)  
+performance::check_overdispersion(M1) #yes!
 
 # Negative binomial
-M1_nbinom2 <- update(M1, family=nbinom2)
-M1_nbinom1 <- update(M1, family=nbinom1)
+M1_nbinom <- update(M1, family = nbinom1)
+
+performance::check_zeroinflation(M1_nbinom) #yes!
+
+# # Check for zero-inflation
+# 
+# Observed zeros: 1032
+# Predicted zeros: 21
+# Ratio: 0.02
 
 # Zero-inflated
-M1_zip <- glmmTMB::glmmTMB(model.formula,
-                        family=poisson, 
-                        ziformula = ~1,
-                        data=dbWOS)
+M1_zinb1 <- glmmTMB::glmmTMB(model.formula.WOS,
+                                 ziformula = ~ 1,
+                                 data = dbWOS,
+                                 family = nbinom1)
 
+M1_zinb2 <- update(M1_zinb1, family = nbinom2)
 
-# dbWOS$WOS2 <- ifelse(dbWOS$WOS > 0, 1, 0)
-# model.formula2 <- as.formula(paste0("WOS2 ~",
-#                                    paste(colnames(dbWOS)[9:ncol(dbWOS)], collapse = " + "),
-#                                    #"+ exp(cor.str + 0 | group)",
-#                                    "+ (1 | phylum) + (1 | class) + (1 | order) + (1 | family)"))
-# checking <- glmmTMB::glmmTMB(model.formula2,
-#                  family = binomial,
-#                  data=dbWOS)
-# 
-# summary(checking)
-
-# Is the model overdispersed?
-performance::check_overdispersion(M1_zip)  
-
-M1_zinbinom2 <- update(M1_zip, family = nbinom2)
-M1_zinbinom1 <- update(M1_zip, family = nbinom1)
-
-# Hurdle model
-
-M1_hnbinom1 <- update(M1_zinbinom2,
+M1_hurdle <- update(M1_zinb2,
                        ziformula = ~ .,
-                       data = dbWOS,
-                       family = truncated_nbinom2)
-
-summary(M1_hnbinom1)
+                       family = truncated_nbinom2) # Hurdle model
 
 # Comparing the models
-AIC(M1, M1_nbinom2, M1_nbinom1, M1_zip, M1_zinbinom2, M1_zinbinom1, M1_hnbinom1)
+AIC(M1, M1_nbinom, M1_zinb1, M1_zinb2, M1_hurdle)
 
 # Validation
-performance::check_model(M1_hnbinom1)    
+performance::check_model(M1_hurdle)    
+performance::check_collinearity(M1_hurdle)
 
 # 
 # # Checking spatial autocorrelation 
@@ -285,32 +265,88 @@ performance::check_model(M1_hnbinom1)
 #                                    jitter(dbWOS$x,0.0000000001),
 #                                    dbWOS$y, plot = FALSE)
 
+# Summary table
+(par.M1 <- parameters::parameters(M1_hurdle))
+
+table.M1 <- par.M1 %>% dplyr::select(Parameter,
+                         Component,
+                         Effects,
+                         Beta = Coefficient,
+                         SE,
+                         CI_low,
+                         CI_high,
+                         p) %>% 
+                         data.frame() %>% 
+                         mutate_if(is.numeric, ~ round(.,3)) 
+
+table.M1 <- table.M1[table.M1$Effects == "fixed",] %>% 
+            dplyr::select(-c(Effects)) %>% 
+            na.omit()
+
+table.M1$Parameter <- as.factor(as.character(table.M1$Parameter))
+table.M1$Component <- as.factor(as.character(table.M1$Component))
+
+
+levels(table.M1$Component) <- c("Conditional", "Zero-inflated")
+
+levels(table.M1$Parameter) <- c("Intercept",
+                                "Color blue",
+                                "Color red",
+                                "Colorful",
+                                "Common name [yes]",
+                                "Domain [aquatic]",
+                                "Domain [terrestrial]",
+                                "Harmful to humans [yes]",
+                                "Human use [yes]",
+                                "IUCN [non-endangered]",
+                                "IUCN [endangered]",
+                                "Phylogenetic distance to humans",
+                                "Range size",
+                                "Organism size",
+                                "Family uniqueness (N° species)",
+                                "Genus uniqueness (N° species)")
+
 # R^2
-my.r2(M1_hnbinom1)
-my.r2(M1_nbinom1)
-
-performance::check_model(M1_nbinom1)    
-
+(M1.R2 <- my.r2(M1_hurdle))
 
 # A general look
-sjPlot::plot_model(M1_hnbinom1, sort.est = TRUE, se = TRUE,
+sjPlot::plot_model(M1_hurdle, sort.est = FALSE, se = TRUE,
                    vline.color ="grey70",
                    show.values = TRUE, value.offset = .3) + theme_bw()
 
-sjPlot::plot_model(M1_nbinom2, sort.est = TRUE, se = TRUE,
-                   vline.color ="grey70",
-                   show.values = TRUE, value.offset = .3) + theme_bw()
+sign <- ifelse(table.M1$p > 0.05, "", ifelse(table.M1$p>0.01," *", " **")) #Significance
+col_p <- ifelse(table.M1$p > 0.05, "grey5", ifelse(table.M1$Beta>0,"orange", "blue") )
+
+table.M1 %>% ggplot2::ggplot(aes(Parameter, Beta)) + facet_wrap(. ~ Component, nrow = 1, ncol = 2) +               
+                geom_hline(lty = 3, size = 0.5, col = "grey50", yintercept = 0) +
+                geom_errorbar(aes(ymin = CI_low, ymax = CI_high), width = 0, col = "grey10")+
+                geom_point(size = 2, pch = 21, col = "grey10", fill = "grey20") +
+                geom_text(
+                label = paste0(round(table.M1$Beta, 3), sign, sep = "  "), vjust = - 1, size = 2) +
+                labs(title = "Scientific interest [N° papers in the Web of Science]",
+                     subtitle = paste0("[Sample size = ", nrow(dbWOS) ," observations]"),
+                     y = expression(paste("Estimated beta" %+-% "95% Confidence interval")),
+                       x = NULL) +
+                theme_classic() + 
+                coord_flip()  +
+                geom_text(data = data.frame(x = 2, y = 2.4, Component = "Zero-inflated", 
+                          label = paste0("R^2 ==",round(as.numeric(M1.R2[2]),2))), 
+                          aes(x = x, y = y, label = label), 
+                          size = 3, parse = TRUE)
+
+            
 
 
 
 
 
-parameters::parameters(M1_hnbinom1)
+
+
 
 
 
 # A general look
-dbWOS %>% ggplot2::ggplot(aes(x = centroid_lat, y = WOS)) +
+dbWOS %>% ggplot2::ggplot(aes(x = scaled_log_distance_human, y = WOS)) +
   geom_point(col = "grey10", fill = "grey30", size = 3, shape = 21, alpha = 0.3)+
   geom_smooth(method = "gam",  se = TRUE, 
               formula = y ~ s(x),
@@ -461,11 +497,15 @@ cor_plot <- ggplot() +
   
   scale_color_manual("",values = custom_color)+
   theme_classic() + theme(legend.position = "none",
-                          axis.text.y = element_text(size = 10,angle=0,vjust=0.5),
-                          axis.ticks.y = element_line(color = "grey20",size = 0.7),
-                          axis.line.y = element_line(color = "grey20",size = 0.7, linetype = "solid"),
-                          axis.ticks.x = element_line(color = "grey20",size = 0.7),
-                          axis.line.x = element_line(color = "grey20",size = 0.7, linetype = "solid"))
+        axis.text.y=element_text(size=10, angle=0,hjust = 0.5,colour ="grey20"),
+        axis.title.y=element_text(size=10, angle=90,colour ="black"),
+        axis.ticks.y = element_line(color = "grey20",size = 0.7),
+        axis.line.y = element_line(color = "grey20",size = 0.7, linetype = "solid"),
+        
+        axis.text.x = element_text(size = 10,angle=0,vjust=0.5,colour = "grey20"),
+        axis.title.x=element_text(size=10,colour = "black"),
+        axis.ticks.x = element_line(color = "grey20",size = 0.7),
+        axis.line.x = element_line(color = "grey20",size = 0.7, linetype = "solid"))
 
 density_WOS <- db %>% ggplot(aes(x = log(Total_wos+1), 
                              color = kingdom, fill = kingdom)) +
