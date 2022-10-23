@@ -317,14 +317,14 @@ sjPlot::plot_model(M1_hurdle, sort.est = FALSE, se = TRUE,
 sign <- ifelse(table.M1$p > 0.05, "", ifelse(table.M1$p>0.01," *", " **")) #Significance
 col_p <- ifelse(table.M1$p > 0.05, "grey5", ifelse(table.M1$Beta>0,"orange", "blue") )
 
-table.M1 %>% ggplot2::ggplot(aes(Parameter, Beta)) + facet_wrap(. ~ Component, nrow = 1, ncol = 2) +               
+table.M1 %>% ggplot2::ggplot(aes(Parameter, Beta)) + facet_wrap(. ~ Component, nrow = 1, ncol = 2) +  
                 geom_hline(lty = 3, size = 0.5, col = "grey50", yintercept = 0) +
                 geom_errorbar(aes(ymin = CI_low, ymax = CI_high), width = 0, col = "grey10")+
                 geom_point(size = 2, pch = 21, col = "grey10", fill = "grey20") +
                 geom_text(
                 label = paste0(round(table.M1$Beta, 3), sign, sep = "  "), vjust = - 1, size = 2) +
                 labs(title = "Scientific interest [N° papers in the Web of Science]",
-                     subtitle = paste0("[Sample size = ", nrow(dbWOS) ," observations]"),
+                     #subtitle = paste0("[Sample size = ", nrow(dbWOS) ," observations]"),
                      y = expression(paste("Estimated beta" %+-% "95% Confidence interval")),
                        x = NULL) +
                 theme_classic() + 
@@ -332,15 +332,28 @@ table.M1 %>% ggplot2::ggplot(aes(Parameter, Beta)) + facet_wrap(. ~ Component, n
                 geom_text(data = data.frame(x = 2, y = 2.4, Component = "Zero-inflated", 
                           label = paste0("R^2 ==",round(as.numeric(M1.R2[2]),2))), 
                           aes(x = x, y = y, label = label), 
+                          size = 3, parse = TRUE)+
+                geom_text(data = data.frame(x = 3, y = 2.4, Component = "Zero-inflated", 
+                              label = paste0("N ==",nrow(dbWOS))), 
+                          aes(x = x, y = y, label = label), 
                           size = 3, parse = TRUE)
+  
+ggplot2::ggplot()+ 
+  +theme_classic()
+  
 
-            
+plot.data <- data.frame(start.points=c(5, 32),
+                        end.points=c(15, 51), 
+                        text.label=c("Sample A", "Sample B"))
+plot.data$text.position <- (plot.data$start.points + plot.data$end.points)/2
 
-
-
-
-
-
+# Plot using ggplot
+library(ggplot2)
+p <- ggplot(plot.data)
+p + geom_rect(aes(xmin=start.points, xmax=end.points, ymin=0, ymax=3), 
+              fill="yellow") + 
+  theme_bw() + geom_text(aes(x=text.position, y=1.5, label=text.label)) + 
+  labs(x=NULL, y=NULL)
 
 
 
