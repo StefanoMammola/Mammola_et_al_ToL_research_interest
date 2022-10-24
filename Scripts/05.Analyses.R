@@ -17,6 +17,7 @@
 
 library("Amelia")
 library("dplyr")
+library("ggpubr")
 library("glmmTMB")
 library("modEvA")
 library("parameters")
@@ -330,26 +331,23 @@ table.M1 <- cbind(Type = rep(var.type,2), table.M1)
 
 sign <- ifelse(table.M1$p > 0.05, "", ifelse(table.M1$p>0.01," *", " **")) #Significance
 col_p <- ifelse(table.M1$p > 0.05, "grey5", ifelse(table.M1$Beta>0,"orange", "blue") )
-
-
-color_models
-col_type <- c("grey20",
-              rep("Cultural",3),
-              rep("Morphological",3),
-              rep("Ecological",4),
-              "Morphological",
-              rep("Ecological",3),
-              "Cultural")
+col_type <- c("black",
+              rep(color_models[2],3),
+              rep(color_models[1],3),
+              rep(color_models[3],4),
+              color_models[1],
+              rep(color_models[3],3),
+              color_models[2])
 
 (M1.forest_plot <- 
     table.M1 %>% 
     ggplot2::ggplot(aes(x = Beta, y = Parameter)) + 
     facet_wrap(. ~ Component, nrow = 1, ncol = 2) +  
   geom_vline(lty = 3, size = 0.5, col = "grey50", xintercept = 0) +
-  geom_errorbar(aes(xmin = CI_low, xmax = CI_high), width = 0, col = "grey20")+
-  geom_point(size = 2, pch = 21, col = "grey20", fill = "grey20") +
+  geom_errorbar(aes(xmin = CI_low, xmax = CI_high), width = 0, col = rep(col_type,2))+
+  geom_point(size = 2, pch = 21, col = rep(col_type,2), fill = rep(col_type,2)) +
   geom_text(
-    label = paste0(round(table.M1$Beta, 3), sign, sep = "  "), vjust = - 1, size = 2) +
+    label = paste0(round(table.M1$Beta, 3), sign, sep = "  "),col = rep(col_type,2), vjust = - 1, size = 3) +
   labs(title = "Scientific interest [N° papers in the Web of Science]",
        #subtitle = paste0("[Sample size = ", nrow(dbWOS) ," observations]"),
        x = expression(paste("Estimated beta" %+-% "95% Confidence interval")),
@@ -357,13 +355,15 @@ col_type <- c("grey20",
     geom_text(data = data.frame(x = 2.2, y = 2.4, Component = "Zero-inflated", 
                                 label = paste0("R^2 ==",round(as.numeric(M1.R2[1]),2))), 
               aes(x = x, y = y, label = label), 
-              size = 3, parse = TRUE)+
+              size = 4, parse = TRUE)+
     geom_text(data = data.frame(x = 2.2, y = 3.4, Component = "Zero-inflated", 
                                 label = paste0("N ==",nrow(dbWOS))), 
               aes(x = x, y = y, label = label), 
-              size = 3, parse = TRUE) +
-  theme_classic() + 
-  theme(axis.text.y = element_text(colour = ))
+              size = 4, parse = TRUE) +
+  theme_classic() + theme(axis.text.y = element_text(colour = rev(c("black", 
+                                                                rep(color_models[1],4),
+                                                                rep(color_models[3],7),
+                                                                rep(color_models[2],4)))))
 )
 
 # Variance partitioning ---------------------------------------------------
@@ -422,8 +422,10 @@ df.venn <- data.frame(x = c(3.2, 1, 2),
                       y = c(1, 1, 2.8), 
                       labels = c(M1.VPA[1,1], M1.VPA[2,1], M1.VPA[3,1]),
                       col.c = color_models)
+
 (M1.venn <- df.venn %>% ggplot2::ggplot() + 
-      xlim(-1,5)+
+      xlim(-2,6)+
+      ylim(-2,6)+
       geom_circle(aes(x0 = x, y0 = y, r = 1.5, fill = col.c, color = col.c), alpha = .2, size = 1, show.legend = FALSE) + 
       scale_colour_identity() + 
       scale_fill_identity()+
@@ -435,70 +437,250 @@ df.venn <- data.frame(x = c(3.2, 1, 2),
       annotate("text", x = 4.4, y = -0.8, label ="Morphological", color = df.venn$col.c[1], size = 4, fontface = "bold")+
       annotate("text", x = -0.2, y = -0.8, label ="Cultural", color = df.venn$col.c[2],size = 4, fontface = "bold")+
       annotate("text", x = 2, y = 4.7, label="Ecological", color = df.venn$col.c[3],size = 4, fontface = "bold") +
-      annotate("text", x = 5, y = 3.8, label=paste("Unexplained = ", M1.Unexplained), color = "grey10",size = 3,hjust = 1) +
-      annotate("text", x = 5, y = 3.5, label=paste("Random = ", M1.random), color = "grey10",size = 3,hjust = 1) +
+      annotate("text", x = 6, y = 3.8, label=paste("Unexplained = ", M1.Unexplained), color = "black",size = 4,hjust = 1) +
+      annotate("text", x = 6, y = 3.5, label=paste("Random = ", M1.random), color = "black",size = 4,hjust = 1) +
       coord_fixed() + 
       theme_void())
 
 
+#Merging
+
+pdf(file = "Figures/Figure_2.pdf", width = 14, height = 6)
 
 
+ggpubr::ggarrange(M1.forest_plot,M1.venn,
+                  common.legend = FALSE,
+                  #hjust = -5,
+                  #align = "h",
+                  labels = c("A", "B"),
+                  ncol=2, nrow=1) 
 
+dev.off()
 
 ######################
 ## Popular interets ##
 ######################
 
-dbWIKI2 <- db %>% dplyr::select(wiki = wiki_mean_month_pgviews,
+dbWIKI2 <- db %>% dplyr::select(wiki = total_wiki_pgviews,
                                 kingdom,
                                 phylum,
                                 class,
                                 order,
                                 family,
-                                y = centroid_lat,
-                                x = centroid_long,
-                                harmful_to_human, #cultural
-                                human_use, #cultural
-                                common_name, #cultural
-                                colorful,  #aesthethic
-                                color_blu, #aesthethic
-                                color_red, #aesthethic
-                                IUCN_rec, #rarity
+                                #y = centroid_lat,
+                                #x = centroid_long,
+                                harmful_to_human,
+                                human_use,
+                                common_name,
+                                colorful,
+                                color_blu,
+                                color_red,
+                                IUCN_rec,
                                 domain_rec,
-                                starts_with("scaled_")) #aesthethic / rarity
-# Scaling variables 
-# dbWIKI2 <- dbWIKI2 %>% dplyr::select(-c(wiki)) %>%
-#   mutate_if(is.numeric, ~ scale(., center = TRUE, scale = TRUE)) %>% 
-#   cbind(wiki = dbWIKI2$wiki, .)
+                                starts_with("scaled_")) 
 
 # Missing data
 Amelia::missmap(dbWIKI2)
 dbWIKI <- na.omit(dbWIKI2)
 
-model.formula <- as.formula(paste0("wiki ~",
+model.formula.WIKI <- as.formula(paste0("wiki ~",
                                    paste(colnames(dbWIKI)[7:ncol(dbWIKI)], collapse = " + "),
-                                   "+ (1 | phylum) + (1 | class) + (1 | order) + (1 | family)"))
+                                   "+ (1 | phylum) + (1 | class) + (1 | order) + (1 | family)")) #+ (1 | family)
 
+# Fit the model -----------------------------------------------------------
 
-(M3 <- glmmTMB::glmmTMB(model.formula,
-                        family = poisson, data = dbWIKI))
+# First model
+M2 <- glmmTMB::glmmTMB(model.formula.WIKI,
+                       family = poisson, 
+                       data = dbWIKI)
 
-# Is the model overdispersed?
-performance::check_overdispersion(M3)  
+performance::check_overdispersion(M2) #model is overdispersed!
 
-(M4 <- glmmTMB::glmmTMB(model.formula,
-                        family = nbinom1, data = dbWIKI)) 
-#control=glmmTMBControl(optimizer = optim, optArgs = list(method="BFGS"))
+# Negative binomial
+M2_nbinom <- glmmTMB::glmmTMB(model.formula.WIKI,
+                              family = nbinom1, 
+                              data = dbWIKI)
 
-performance::check_model(M4)                            
+diagnose(M2_nbinom) 
+performance::check_zeroinflation(M2_nbinom) # Yes!
 
-summary(M4)
+# Zero-inflated
+M2_zinb1 <- glmmTMB::glmmTMB(model.formula.WIKI,
+                             ziformula = ~ 1,
+                             data = dbWIKI,
+                             family = nbinom1)
 
-my.r2(M4)
+M2_zinb2  <- glmmTMB::glmmTMB(model.formula.WIKI,
+                              ziformula = ~ 1,
+                              data = dbWIKI,
+                              family = nbinom2)
 
-sjPlot::plot_model(M4, sort.est = TRUE, se = TRUE,
-                   vline.color ="grey70",
-                   show.values = TRUE, value.offset = .3) + theme_bw()
+M2_hurdle <- glmmTMB::glmmTMB(model.formula.WIKI,
+                              ziformula = ~ ., family = truncated_nbinom2,
+                              data = dbWIKI) #convergence problems
+
+# Comparing the models
+AIC(M2, M2_nbinom, M2_zinb1, M2_zinb2, M2_hurdle) #M2_hurdle
+
+# Model validation
+performance::check_model(M2_zinb2)    
+performance::check_collinearity(M2_zinb2)
+
+# Summary table
+(par.M2 <- parameters::parameters(M2_zinb2))
+
+table.M2 <- par.M2 %>% dplyr::select(Parameter,
+                                     Component,
+                                     Effects,
+                                     Beta = Coefficient,
+                                     SE,
+                                     CI_low,
+                                     CI_high,
+                                     p) %>% 
+  data.frame() %>% 
+  mutate_if(is.numeric, ~ round(., 3)) ; rm(par.M2)
+
+table.M2 <- table.M2[table.M2$Effects == "fixed",] %>% 
+  dplyr::select(-c(Effects)) %>% 
+  na.omit()
+
+table.M2 <- table.M2[-17,]
+
+table.M2$Parameter <- as.factor(as.character(table.M2$Parameter))
+#table.M2$Component <- as.factor(as.character(table.M2$Component))
+
+#levels(table.M2$Component) <- c("Conditional", "Zero-inflated")
+levels(table.M2$Parameter) <- names.M1
+table.M2$Parameter <- factor(table.M2$Parameter, rev(order.M1)) #Sort
+
+#Categorizing variables
+var.type <- c("Intercept",
+              rep("Cultural",3),
+              rep("Morphological",3),
+              rep("Ecological",4),
+              "Morphological",
+              rep("Ecological",3),
+              "Cultural")
+table.M2 <- cbind(Type = var.type, table.M2)
+
+# R^2
+(M2.R2 <- my.r2(M2_zinb2))
+
+# A general look
+# sjPlot::plot_model(M1_hurdle, sort.est = FALSE, se = TRUE,
+#                    vline.color ="grey70",
+#                    show.values = TRUE, value.offset = .3) + theme_bw()
+
+sign <- ifelse(table.M2$p > 0.05, "", ifelse(table.M2$p>0.01," *", " **")) #Significance
+col_p <- ifelse(table.M2$p > 0.05, "grey5", ifelse(table.M2$Beta>0,"orange", "blue") )
+col_type <- c("black",
+              rep(color_models[2],3),
+              rep(color_models[1],3),
+              rep(color_models[3],4),
+              color_models[1],
+              rep(color_models[3],3),
+              color_models[2])
+
+(M2.forest_plot <- 
+    table.M2 %>% 
+    ggplot2::ggplot(aes(x = Beta, y = Parameter)) + 
+    #facet_wrap(. ~ Component, nrow = 1, ncol = 2) +  
+    geom_vline(lty = 3, size = 0.5, col = "grey50", xintercept = 0) +
+    geom_errorbar(aes(xmin = CI_low, xmax = CI_high), width = 0, col = col_type)+
+    geom_point(size = 2, pch = 21, col = col_type, fill = col_type) +
+    geom_text(
+      label = paste0(round(table.M2$Beta, 3), sign, sep = "  "), col = col_type, vjust = - 1, size = 3) +
+    labs(title = "General interest [N° views in Wikipedia]",
+         #subtitle = paste0("[Sample size = ", nrow(dbWOS) ," observations]"),
+         x = expression(paste("Estimated beta" %+-% "95% Confidence interval")),
+         y = NULL) +
+    geom_text(data = data.frame(x = 4.5, y = 2.4, 
+                                label = paste0("R^2 ==",round(as.numeric(M2.R2[1]),2))), 
+              aes(x = x, y = y, label = label), 
+              size = 4, parse = TRUE)+
+    geom_text(data = data.frame(x = 4.5, y = 3.4,
+                                label = paste0("N ==",nrow(dbWIKI))), 
+              aes(x = x, y = y, label = label), 
+              size = 4, parse = TRUE) +
+    theme_classic() + theme(axis.text.y = element_text(colour = rev(c("black", 
+                                                                      rep(color_models[1],4),
+                                                                      rep(color_models[3],7),
+                                                                      rep(color_models[2],4)))))
+)
+
+# Variance partitioning ---------------------------------------------------
+
+#Grouping
+morpho <- "colorful + color_blu + color_red + scaled_size"
+antro  <- "harmful_to_human + human_use + common_name + scaled_log_distance_human"
+eco    <- "IUCN_rec + domain_rec + scaled_range_size + scaled_uniqueness_family + scaled_uniqueness_genus"
+
+#Setting formulas
+formula.morpho           <- as.formula(paste0("wiki ~ ",morpho,"+",random))
+formula.antro            <- as.formula(paste0("wiki ~ ",antro,"+",random))
+formula.eco              <- as.formula(paste0("wiki ~ ",eco,"+",random))
+formula.morpho.antro     <- as.formula(paste0("wiki ~ ",morpho,"+",antro,"+",random))
+formula.morpho.eco       <- as.formula(paste0("wiki ~ ",morpho,"+",eco,"+",random))
+formula.antro.eco        <- as.formula(paste0("wiki ~ ",antro,"+",eco,"+",random))
+formula.morpho.antro.eco <- as.formula(paste0("wiki ~ ",morpho,"+",antro,"+",eco,"+",random))
+
+#Fitting models
+M2_VPA1 <- glmmTMB::glmmTMB(formula.morpho,
+                            ziformula = ~ 1, family = nbinom2, data = dbWIKI)
+M2_VPA2 <- glmmTMB::glmmTMB(formula.antro,
+                            ziformula = ~ 1, family = nbinom2, data = dbWIKI)
+M2_VPA3 <- glmmTMB::glmmTMB(formula.eco,
+                            ziformula = ~ 1, family = nbinom2, data = dbWIKI)
+M2_VPA4 <- glmmTMB::glmmTMB(formula.morpho.antro,
+                            ziformula = ~ 1, family = nbinom2, data = dbWIKI)
+M2_VPA5 <- glmmTMB::glmmTMB(formula.morpho.eco,
+                            ziformula = ~ 1, family = nbinom2, data = dbWIKI)
+M2_VPA6 <- glmmTMB::glmmTMB(formula.antro.eco,
+                            ziformula = ~ 1, family = nbinom2, data = dbWIKI)
+M2_VPA7 <- glmmTMB::glmmTMB(formula.morpho.antro.eco,
+                            ziformula = ~ 1, family = nbinom2, data = dbWIKI)
+
+#VPA
+M2.VPA <- modEvA::varPart(A   = as.numeric(my.r2(M2_VPA1)$R2.marginal),
+                          B   = as.numeric(my.r2(M2_VPA2)$R2.marginal),
+                          C   = as.numeric(my.r2(M2_VPA3)$R2.marginal),
+                          AB  = as.numeric(my.r2(M2_VPA4)$R2.marginal),
+                          AC  = as.numeric(my.r2(M2_VPA5)$R2.marginal),
+                          BC  = as.numeric(my.r2(M2_VPA6)$R2.marginal),
+                          ABC = as.numeric(my.r2(M2_VPA7)$R2.marginal),
+                          A.name = "Morphological",
+                          B.name = "Cultural",
+                          C.name = "Ecological", 
+                          plot = TRUE, 
+                          plot.unexpl = TRUE)
+
+M2.VPA$Proportion <- round(M2.VPA$Proportion,3)
+M2.random <- round(as.numeric(my.r2(M2_VPA7)[2]) - as.numeric(my.r2(M2_VPA7)[1]),3)
+M2.Unexplained <- M2.VPA$Proportion[8] - M1.random
+
+df.venn <- data.frame(x = c(3.2, 1, 2),
+                      y = c(1, 1, 2.8), 
+                      labels = c("0.000",M2.VPA[2,1], M2.VPA[3,1]),
+                      col.c = color_models)
+
+(M2.venn <- df.venn %>% ggplot2::ggplot() + 
+    xlim(-2,6)+
+    ylim(-2,6)+
+    geom_circle(aes(x0 = x, y0 = y, r = 1.5, fill = col.c, color = col.c), alpha = .2, size = 1, show.legend = FALSE) + 
+    scale_colour_identity() + 
+    scale_fill_identity()+
+    annotate("text", x = df.venn$x , y = df.venn$y, label = df.venn$labels, size = 5)+ #A - B - C
+    annotate("text", x = 2.1, y = 1, label = M2.VPA[4,1], size = 4)+ #AB
+    annotate("text", x = 2.7, y = 2,label =  "<0.001",size = 4)+ #AC
+    annotate("text", x = 1.35, y = 2,label = "0.000" ,size = 4)+ #BC
+    annotate("text", x = 2.1, y = 1.6,label = "<0.01", size = 3)+ #ABC
+    annotate("text", x = 4.4, y = -0.8, label ="Morphological", color = df.venn$col.c[1], size = 4, fontface = "bold")+
+    annotate("text", x = -0.2, y = -0.8, label ="Cultural", color = df.venn$col.c[2],size = 4, fontface = "bold")+
+    annotate("text", x = 2, y = 4.7, label="Ecological", color = df.venn$col.c[3],size = 4, fontface = "bold") +
+    annotate("text", x = 6, y = 3.8, label=paste("Unexplained = ", M2.Unexplained), color = "black",size = 4,hjust = 1) +
+    annotate("text", x = 6, y = 3.5, label=paste("Random = ", M2.random), color = "black",size = 4,hjust = 1) +
+    coord_fixed() + 
+    theme_void())
 
 ####################################################################################
 # Figures --------------------------------------------------------------------------
@@ -618,5 +800,19 @@ pdf(file = "./Figures/Figure 1.pdf", width = 7, height = 5)
 
 (plot_cor <- gridExtra::grid.arrange(density_WOS, blankPlot, cor_plot, density_WIKI, 
                           ncol=2, nrow=2, widths=c(3, 1.7), heights=c(1.7, 3)) )
+
+dev.off()
+
+# Figure 2 ----------------------------------------------------------------
+
+#Merging
+pdf(file = "Figures/Figure_2.pdf", width = 14, height = 12)
+
+ggpubr::ggarrange(M1.forest_plot,M2.forest_plot,M1.venn,M2.venn,
+                  common.legend = FALSE,
+                  hjust = -5,
+                  align = "h",
+                  labels = c("A", "B","C", "D"),
+                  ncol=2, nrow=2) 
 
 dev.off()
