@@ -13,13 +13,14 @@
 # Preparation ----------------------------------------------------------------------
 ####################################################################################
 
-# Questions: VPA?
-
 # Loading R packages ------------------------------------------------------
 
 library("Amelia")
 library("dplyr")
 library("glmmTMB")
+library("modEvA")
+library("parameters")
+library("performance")
 library("sjPlot")
 library("tidylog")
 library("tidyverse") 
@@ -27,6 +28,8 @@ library("tidyverse")
 # Functions ---------------------------------------------------------------
 
 source("Functions/Functions.r") #custom functions
+
+color_models <- c("grey30","violetred4","blue")
 
 # Loading the database  ---------------------------------------------------
 
@@ -171,8 +174,6 @@ db$scaled_uniqueness_family   <- scale(db$log_uniqueness_family, center = TRUE, 
 db$scaled_uniqueness_genus    <- scale(db$log_uniqueness_genus, center = TRUE, scale = TRUE)
 db$scaled_log_distance_human  <- scale(db$log_distance_hu, center = TRUE, scale = TRUE)
 
-
-
 # Assembling a final database ---------------------------------------------
 
 #######################
@@ -186,7 +187,7 @@ dbWOS2 <- db %>% dplyr::select(WOS = Total_wos,
                                order,
                                family,
                                #y = centroid_lat,
-                               # x = centroid_long,
+                               #x = centroid_long,
                                harmful_to_human,
                                human_use,
                                common_name,
@@ -202,18 +203,19 @@ Amelia::missmap(dbWOS2)
 dbWOS <- na.omit(dbWOS2)
 
 # Setting formula ---------------------------------------------------------
+
+# random structure
 nlevels(dbWOS$phylum)
 nlevels(dbWOS$class)
 nlevels(dbWOS$order)
 nlevels(dbWOS$family)
+random <- "(1 | phylum) + (1 | class) + (1 | order) + (1 | family)"
 
-# dbWOS$cor.str <- numFactor(dbWOS$x,dbWOS$y)
-# dbWOS$group   <- factor(rep(1, nrow(dbWOS)))
-
+#formula
 model.formula.WOS <- as.formula(paste0("WOS ~",
                                    paste(colnames(dbWOS)[7:ncol(dbWOS)], collapse = " + "),
-                                   #"+ exp(cor.str + 0 | group)",
-                                   "+ (1 | phylum) + (1 | class) + (1 | order) + (1 | family)"))
+                                   "+",
+                                   random))
 
 # Fit the model -----------------------------------------------------------
 
@@ -221,49 +223,32 @@ model.formula.WOS <- as.formula(paste0("WOS ~",
 M1 <- glmmTMB::glmmTMB(model.formula.WOS,
                        family = poisson, 
                        data = dbWOS)
-                       
-# Is the model overdispersed?
-performance::check_overdispersion(M1) #yes!
+diagnose(M1)
+performance::check_overdispersion(M1) #model is overdispersed!
 
 # Negative binomial
-M1_nbinom <- update(M1, family = nbinom1)
+M1_nbinom <- glmmTMB::glmmTMB(model.formula.WOS,
+                              family = nbinom1, 
+                              data = dbWOS)
 
-performance::check_zeroinflation(M1_nbinom) #yes!
-
-# # Check for zero-inflation
-# 
-# Observed zeros: 1032
-# Predicted zeros: 21
-# Ratio: 0.02
+diagnose(M1_nbinom) # Zero-inflation is estimated to be near zero (a strongly negative zero-inflation parameter)
+performance::check_zeroinflation(M1_nbinom) # Yes!
 
 # Zero-inflated
 M1_zinb1 <- glmmTMB::glmmTMB(model.formula.WOS,
-                                 ziformula = ~ 1,
-                                 data = dbWOS,
-                                 family = nbinom1)
+                             ziformula = ~ 1,
+                             data = dbWOS,
+                             family = nbinom1)
 
-M1_zinb2 <- update(M1_zinb1, family = nbinom2)
-
-M1_hurdle <- update(M1_zinb2,
-                       ziformula = ~ .,
-                       family = truncated_nbinom2) # Hurdle model
+M1_zinb2  <- update(M1_zinb1, family = nbinom2)
+M1_hurdle <- update(M1_zinb2, ziformula = ~ ., family = truncated_nbinom2) # Hurdle model
 
 # Comparing the models
-AIC(M1, M1_nbinom, M1_zinb1, M1_zinb2, M1_hurdle)
+AIC(M1, M1_nbinom, M1_zinb1, M1_zinb2, M1_hurdle) #M1_hurdle!
 
-# Validation
+# Model validation
 performance::check_model(M1_hurdle)    
 performance::check_collinearity(M1_hurdle)
-
-# 
-# # Checking spatial autocorrelation 
-# #
-# # # Is there spatial autocorrelation?
-# res   <- DHARMa::simulateResiduals(M2)
-# 
-# DHARMa::testSpatialAutocorrelation(res, 
-#                                    jitter(dbWOS$x,0.0000000001),
-#                                    dbWOS$y, plot = FALSE)
 
 # Summary table
 (par.M1 <- parameters::parameters(M1_hurdle))
@@ -277,7 +262,7 @@ table.M1 <- par.M1 %>% dplyr::select(Parameter,
                          CI_high,
                          p) %>% 
                          data.frame() %>% 
-                         mutate_if(is.numeric, ~ round(.,3)) 
+                         mutate_if(is.numeric, ~ round(.,3)) ; rm(par.M1)
 
 table.M1 <- table.M1[table.M1$Effects == "fixed",] %>% 
             dplyr::select(-c(Effects)) %>% 
@@ -286,111 +271,180 @@ table.M1 <- table.M1[table.M1$Effects == "fixed",] %>%
 table.M1$Parameter <- as.factor(as.character(table.M1$Parameter))
 table.M1$Component <- as.factor(as.character(table.M1$Component))
 
+names.M1 <-  c("Intercept",
+               "Color blue",
+               "Color red",
+               "Colorful",
+               "Common name [yes]",
+               "Domain [aquatic]",
+               "Domain [terrestrial]",
+               "Harmful to humans [yes]",
+               "Human use [yes]",
+               "IUCN [endangered]",
+               "IUCN [non-endangered]",
+               "Phylogenetic distance to humans",
+               "Range size",
+               "Organism size",
+               "Family uniqueness (N° species)",
+               "Genus uniqueness (N° species)")
 
 levels(table.M1$Component) <- c("Conditional", "Zero-inflated")
+levels(table.M1$Parameter) <- names.M1
 
-levels(table.M1$Parameter) <- c("Intercept",
-                                "Color blue",
-                                "Color red",
-                                "Colorful",
-                                "Common name [yes]",
-                                "Domain [aquatic]",
-                                "Domain [terrestrial]",
-                                "Harmful to humans [yes]",
-                                "Human use [yes]",
-                                "IUCN [non-endangered]",
-                                "IUCN [endangered]",
-                                "Phylogenetic distance to humans",
-                                "Range size",
-                                "Organism size",
-                                "Family uniqueness (N° species)",
-                                "Genus uniqueness (N° species)")
+order.M1 <- c("Intercept",
+              "Organism size",
+              "Color blue",
+              "Color red",
+              "Colorful",
+              "Domain [aquatic]",
+              "Domain [terrestrial]",
+              "IUCN [endangered]",
+              "IUCN [non-endangered]",
+              "Family uniqueness (N° species)",
+              "Genus uniqueness (N° species)",
+              "Range size",
+              "Common name [yes]",
+              "Harmful to humans [yes]",
+              "Human use [yes]",
+              "Phylogenetic distance to humans")
+
+table.M1$Parameter <- factor(table.M1$Parameter, rev(order.M1)) #Sort
+
+#Categorizing variables
+var.type <- c("Intercept",
+             rep("Cultural",3),
+             rep("Morphological",3),
+             rep("Ecological",4),
+             "Morphological",
+             rep("Ecological",3),
+             "Cultural")
+table.M1 <- cbind(Type = rep(var.type,2), table.M1)
 
 # R^2
 (M1.R2 <- my.r2(M1_hurdle))
 
 # A general look
-sjPlot::plot_model(M1_hurdle, sort.est = FALSE, se = TRUE,
-                   vline.color ="grey70",
-                   show.values = TRUE, value.offset = .3) + theme_bw()
+# sjPlot::plot_model(M1_hurdle, sort.est = FALSE, se = TRUE,
+#                    vline.color ="grey70",
+#                    show.values = TRUE, value.offset = .3) + theme_bw()
 
 sign <- ifelse(table.M1$p > 0.05, "", ifelse(table.M1$p>0.01," *", " **")) #Significance
 col_p <- ifelse(table.M1$p > 0.05, "grey5", ifelse(table.M1$Beta>0,"orange", "blue") )
 
-table.M1 %>% ggplot2::ggplot(aes(Parameter, Beta)) + facet_wrap(. ~ Component, nrow = 1, ncol = 2) +  
-                geom_hline(lty = 3, size = 0.5, col = "grey50", yintercept = 0) +
-                geom_errorbar(aes(ymin = CI_low, ymax = CI_high), width = 0, col = "grey10")+
-                geom_point(size = 2, pch = 21, col = "grey10", fill = "grey20") +
-                geom_text(
-                label = paste0(round(table.M1$Beta, 3), sign, sep = "  "), vjust = - 1, size = 2) +
-                labs(title = "Scientific interest [N° papers in the Web of Science]",
-                     #subtitle = paste0("[Sample size = ", nrow(dbWOS) ," observations]"),
-                     y = expression(paste("Estimated beta" %+-% "95% Confidence interval")),
-                       x = NULL) +
-                theme_classic() + 
-                coord_flip()  +
-                geom_text(data = data.frame(x = 2, y = 2.4, Component = "Zero-inflated", 
-                          label = paste0("R^2 ==",round(as.numeric(M1.R2[2]),2))), 
-                          aes(x = x, y = y, label = label), 
-                          size = 3, parse = TRUE)+
-                geom_text(data = data.frame(x = 3, y = 2.4, Component = "Zero-inflated", 
-                              label = paste0("N ==",nrow(dbWOS))), 
-                          aes(x = x, y = y, label = label), 
-                          size = 3, parse = TRUE)
-  
-ggplot2::ggplot()+ 
-  +theme_classic()
-  
 
-plot.data <- data.frame(start.points=c(5, 32),
-                        end.points=c(15, 51), 
-                        text.label=c("Sample A", "Sample B"))
-plot.data$text.position <- (plot.data$start.points + plot.data$end.points)/2
+color_models
+col_type <- c("grey20",
+              rep("Cultural",3),
+              rep("Morphological",3),
+              rep("Ecological",4),
+              "Morphological",
+              rep("Ecological",3),
+              "Cultural")
 
-# Plot using ggplot
-library(ggplot2)
-p <- ggplot(plot.data)
-p + geom_rect(aes(xmin=start.points, xmax=end.points, ymin=0, ymax=3), 
-              fill="yellow") + 
-  theme_bw() + geom_text(aes(x=text.position, y=1.5, label=text.label)) + 
-  labs(x=NULL, y=NULL)
+(M1.forest_plot <- 
+    table.M1 %>% 
+    ggplot2::ggplot(aes(x = Beta, y = Parameter)) + 
+    facet_wrap(. ~ Component, nrow = 1, ncol = 2) +  
+  geom_vline(lty = 3, size = 0.5, col = "grey50", xintercept = 0) +
+  geom_errorbar(aes(xmin = CI_low, xmax = CI_high), width = 0, col = "grey20")+
+  geom_point(size = 2, pch = 21, col = "grey20", fill = "grey20") +
+  geom_text(
+    label = paste0(round(table.M1$Beta, 3), sign, sep = "  "), vjust = - 1, size = 2) +
+  labs(title = "Scientific interest [N° papers in the Web of Science]",
+       #subtitle = paste0("[Sample size = ", nrow(dbWOS) ," observations]"),
+       x = expression(paste("Estimated beta" %+-% "95% Confidence interval")),
+       y = NULL) +
+    geom_text(data = data.frame(x = 2.2, y = 2.4, Component = "Zero-inflated", 
+                                label = paste0("R^2 ==",round(as.numeric(M1.R2[1]),2))), 
+              aes(x = x, y = y, label = label), 
+              size = 3, parse = TRUE)+
+    geom_text(data = data.frame(x = 2.2, y = 3.4, Component = "Zero-inflated", 
+                                label = paste0("N ==",nrow(dbWOS))), 
+              aes(x = x, y = y, label = label), 
+              size = 3, parse = TRUE) +
+  theme_classic() + 
+  theme(axis.text.y = element_text(colour = ))
+)
+
+# Variance partitioning ---------------------------------------------------
+
+#Grouping
+morpho <- "colorful + color_blu + color_red + scaled_size"
+antro  <- "harmful_to_human + human_use + common_name + scaled_log_distance_human"
+eco    <- "IUCN_rec + domain_rec + scaled_range_size + scaled_uniqueness_family + scaled_uniqueness_genus"
+
+#Setting formulas
+formula.morpho           <- as.formula(paste0("WOS ~ ",morpho,"+",random))
+formula.antro            <- as.formula(paste0("WOS ~ ",antro,"+",random))
+formula.eco              <- as.formula(paste0("WOS ~ ",eco,"+",random))
+formula.morpho.antro     <- as.formula(paste0("WOS ~ ",morpho,"+",antro,"+",random))
+formula.morpho.eco       <- as.formula(paste0("WOS ~ ",morpho,"+",eco,"+",random))
+formula.antro.eco        <- as.formula(paste0("WOS ~ ",antro,"+",eco,"+",random))
+formula.morpho.antro.eco <- as.formula(paste0("WOS ~ ",morpho,"+",antro,"+",eco,"+",random))
+
+#Fitting models
+M1_VPA1 <- glmmTMB::glmmTMB(formula.morpho,
+                         ziformula = ~ ., family = truncated_nbinom2, data = dbWOS)
+M1_VPA2 <- glmmTMB::glmmTMB(formula.antro,
+                         ziformula = ~ ., family = truncated_nbinom2, data = dbWOS)
+M1_VPA3 <- glmmTMB::glmmTMB(formula.eco,
+                         ziformula = ~ ., family = truncated_nbinom2, data = dbWOS)
+M1_VPA4 <- glmmTMB::glmmTMB(formula.morpho.antro,
+                         ziformula = ~ ., family = truncated_nbinom2, data = dbWOS)
+M1_VPA5 <- glmmTMB::glmmTMB(formula.morpho.eco,
+                         ziformula = ~ ., family = truncated_nbinom2, data = dbWOS)
+M1_VPA6 <- glmmTMB::glmmTMB(formula.antro.eco,
+                         ziformula = ~ ., family = truncated_nbinom2, data = dbWOS)
+M1_VPA7 <- glmmTMB::glmmTMB(formula.morpho.antro.eco,
+                         ziformula = ~ ., family = truncated_nbinom2, data = dbWOS)
+
+as.numeric(my.r2(M1_VPA1)$R2.marginal)
+
+#VPA
+M1.VPA <- modEvA::varPart(A   = as.numeric(my.r2(M1_VPA1)$R2.marginal),
+                          B   = as.numeric(my.r2(M1_VPA2)$R2.marginal),
+                          C   = as.numeric(my.r2(M1_VPA3)$R2.marginal),
+                          AB  = as.numeric(my.r2(M1_VPA4)$R2.marginal),
+                          AC  = as.numeric(my.r2(M1_VPA5)$R2.marginal),
+                          BC  = as.numeric(my.r2(M1_VPA6)$R2.marginal),
+                          ABC = as.numeric(my.r2(M1_VPA7)$R2.marginal),
+                          A.name = "Morphological",
+                          B.name = "Cultural",
+                          C.name = "Ecological", 
+                          plot = TRUE, 
+                          plot.unexpl = TRUE)
+
+M1.VPA$Proportion <- round(M1.VPA$Proportion,3)
+M1.random <- round(as.numeric(my.r2(M1_VPA7)[2]) - as.numeric(my.r2(M1_VPA7)[1]),3)
+M1.Unexplained <- M1.VPA$Proportion[8] - M1.random
+
+df.venn <- data.frame(x = c(3.2, 1, 2),
+                      y = c(1, 1, 2.8), 
+                      labels = c(M1.VPA[1,1], M1.VPA[2,1], M1.VPA[3,1]),
+                      col.c = color_models)
+(M1.venn <- df.venn %>% ggplot2::ggplot() + 
+      xlim(-1,5)+
+      geom_circle(aes(x0 = x, y0 = y, r = 1.5, fill = col.c, color = col.c), alpha = .2, size = 1, show.legend = FALSE) + 
+      scale_colour_identity() + 
+      scale_fill_identity()+
+      annotate("text", x = df.venn$x , y = df.venn$y, label = df.venn$labels, size = 5)+ #ABC
+      annotate("text", x = 2.1, y = 1, label = "0.0", size = 4)+ #AB
+      annotate("text", x = 2.7, y = 2,label = "0.0" ,size = 4)+ #AC
+      annotate("text", x = 1.35, y = 2,label = M1.VPA[5,1] ,size = 4)+ #BC
+      annotate("text", x = 2.1, y = 1.6,label = "0.02", size = 3)+ #ABC
+      annotate("text", x = 4.4, y = -0.8, label ="Morphological", color = df.venn$col.c[1], size = 4, fontface = "bold")+
+      annotate("text", x = -0.2, y = -0.8, label ="Cultural", color = df.venn$col.c[2],size = 4, fontface = "bold")+
+      annotate("text", x = 2, y = 4.7, label="Ecological", color = df.venn$col.c[3],size = 4, fontface = "bold") +
+      annotate("text", x = 5, y = 3.8, label=paste("Unexplained = ", M1.Unexplained), color = "grey10",size = 3,hjust = 1) +
+      annotate("text", x = 5, y = 3.5, label=paste("Random = ", M1.random), color = "grey10",size = 3,hjust = 1) +
+      coord_fixed() + 
+      theme_void())
 
 
 
 
-# A general look
-dbWOS %>% ggplot2::ggplot(aes(x = scaled_log_distance_human, y = WOS)) +
-  geom_point(col = "grey10", fill = "grey30", size = 3, shape = 21, alpha = 0.3)+
-  geom_smooth(method = "gam",  se = TRUE, 
-              formula = y ~ s(x),
-              method.args = list(family = poisson)) +
-  theme_classic() 
 
-# A general look
-dbWOS %>% ggplot2::ggplot(aes(x = log_size_avg, y = WOS)) +
-  geom_point(col = "grey10", fill = "grey30", size = 3, shape = 21, alpha = 0.3)+
-  geom_smooth(method = "gam",  se = TRUE, 
-              formula = y ~ s(x),
-              method.args = list(family = poisson)) +
-  theme_classic() 
 
-# A general look
-dbWOS %>% ggplot2::ggplot(aes(x = log_range_size, y = WOS)) +
-  geom_point(col = "grey10", fill = "grey30", size = 3, shape = 21, alpha = 0.3)+
-  geom_smooth(method = "gam",  se = TRUE, 
-              formula = y ~ s(x),
-              method.args = list(family = poisson)) +
-  theme_classic() 
-
-# A general look
-dbWOS %>% ggplot2::ggplot(aes(x = centroid_lat, y = WOS)) +
-  geom_point(col = "grey10", fill = "grey30", size = 3, shape = 21, alpha = 0.3)+
-  geom_smooth(method = "gam",  se = TRUE, 
-              formula = y ~ s(x),
-              method.args = list(family = poisson)) +
-  theme_classic() 
-
-colnames(db)
 ######################
 ## Popular interets ##
 ######################
