@@ -8,10 +8,14 @@
 ##################
 
 ## ------------------------------------------------------------------------
-# 'Custom functions'
+# 'Custom themes ggplot2'
 ## ------------------------------------------------------------------------
 
-# Cuastom theme for ggplot2
+# Colors
+
+color_models <- c("violetred4","blue","grey30")
+
+# Custom theme for ggplot2
 custom_theme <- theme(#text = element_text(family = "Arial"),
   axis.text = element_text(size = 10), 
   axis.title = element_text(size = 12),
@@ -32,30 +36,9 @@ custom_theme <- theme(#text = element_text(family = "Arial"),
                                    fill = "transparent", 
                                    size = 2, linetype = "blank"))
 
-# Custom for GGally::ggpairs
-
-LowerFn <- function(data, mapping, method = "lm", ...) {
-  p <- ggplot(data = data, mapping = mapping) +
-    #geom_point(colour = "blue") +
-    geom_smooth(method = method, color = "grey10", ...)
-  p
-}
-
-cor_func <- function(data, mapping, method, ...){
-  x <- eval_data_col(data, mapping$x)
-  y <- eval_data_col(data, mapping$y)
-  
-  corr <- cor(x, y, method=method, use='complete.obs')
-  
-  
-  ggally_text(
-    label = as.character(round(corr, 2)), 
-    mapping = aes(),
-    xP = 0.5, yP = 0.5,
-    color = 'black',
-    ...
-  )
-}
+## ------------------------------------------------------------------------
+# 'Custom functions'
+## ------------------------------------------------------------------------
 
 #Custom function for R2
 my.r2 <- function(model) {

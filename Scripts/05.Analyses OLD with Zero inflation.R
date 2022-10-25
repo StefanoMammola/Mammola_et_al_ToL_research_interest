@@ -142,10 +142,10 @@ db$IUCN_rec <- relevel(db$IUCN_rec, "Unknown") #setting baseline
 # Balancing levels Domain
 db$domain_rec <- db$domain
 
-levels(db$domain_rec) <- c("freshwater","multiple","multiple","multiple",
-                           "marine", "multiple", "terrestrial", "multiple", "terrestrial")
+levels(db$domain_rec) <- c("aquatic","aquatic","aquatic + terrestrial","aquatic + terrestrial",
+                           "aquatic", "aquatic + terrestrial", "terrestrial", "aquatic", "terrestrial")
 
-db$domain_rec <- relevel(db$domain_rec, "multiple") #setting baseline
+db$domain_rec <- relevel(db$domain_rec, "aquatic + terrestrial") #setting baseline
 
 table(db$domain_rec)
 
@@ -157,19 +157,30 @@ db <- db %>%
                 log_size_avg = log(size_avg+1),
                 log_distance_hu = log(mean_divergence_time_Mya+1))
 
-db <- db %>% 
-  dplyr::mutate(scaled_uniqueness_family = scale(log_uniqueness_family, center = TRUE, scale = TRUE),
-                scaled_log_distance_human = scale(log_distance_hu, center = TRUE, scale = TRUE),
-                scaled_range_size = scale(log_range_size, center = TRUE, scale = TRUE),
-                scaled_size = scale(log_size_avg, center = TRUE, scale = TRUE))
+# # Invisibile??
+# # scaling size and range size by group
+# scaled_size <- c()
+# for(i in 1:nlevels(db$phylum)) {
+#   db2 <- db[db$phylum == levels(db$phylum)[i], ]
+#   scaled_size <- append(scaled_size, scale(db2$log_size_avg)[,1]) }
+# 
+# scaled_range_size <- c()
+# for(i in 1:nlevels(db$phylum)) {
+#   db2 <- db[db$phylum == levels(db$phylum)[i], ]
+#   scaled_range_size <- append(scaled_range_size, scale(db2$log_range_size)[,1]) }
 
-db$latitude <- scale(abs(db$centroid_lat))
+# db <- data.frame(db, scaled_size, scaled_range_size) ; rm(db2, scaled_size, scaled_range_size, i)
 
-############################################################################
-############################################################################
-# Modelling research interest ---------------------------------------------
-############################################################################
-############################################################################
+db$scaled_uniqueness_family   <- scale(db$log_uniqueness_family, center = TRUE, scale = TRUE)
+db$scaled_log_distance_human  <- scale(db$log_distance_hu, center = TRUE, scale = TRUE)
+db$scaled_range_size          <- scale(db$log_range_size, center = TRUE, scale = TRUE)
+db$scaled_size                <- scale(db$log_size_avg, center = TRUE, scale = TRUE)
+
+# Assembling a final database ---------------------------------------------
+
+#######################
+## Research interets ##
+#######################
 
 dbWOS2 <- db %>% dplyr::select(WOS = Total_wos,
                                kingdom,
@@ -177,23 +188,36 @@ dbWOS2 <- db %>% dplyr::select(WOS = Total_wos,
                                class,
                                order,
                                family,
-                               latitude,
-                               scaled_size,
+                               #y = centroid_lat,
+                               #x = centroid_long,
+                               harmful_to_human,
+                               human_use,
+                               common_name,
                                colorful,
                                color_blu,
                                color_red,
-                               scaled_range_size,
-                               domain_rec,
                                IUCN_rec,
-                               scaled_uniqueness_family,
-                               common_name,
-                               human_use,
-                               harmful_to_human,
-                               scaled_log_distance_human) 
+                               domain_rec,
+                               starts_with("scaled_")) 
 
 # Missing data
 Amelia::missmap(dbWOS2)
 dbWOS <- na.omit(dbWOS2)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 # Setting formula ---------------------------------------------------------
 
@@ -217,7 +241,6 @@ model.formula.WOS <- as.formula(paste0("WOS ~",
 M1 <- glmmTMB::glmmTMB(model.formula.WOS,
                        family = poisson, 
                        data = dbWOS)
-
 diagnose(M1)
 performance::check_overdispersion(M1) #Model is overdispersed
 performance::check_zeroinflation(M1) #Underfitting zeros
@@ -228,90 +251,34 @@ M1_nbinom <- glmmTMB::glmmTMB(model.formula.WOS,
                               data = dbWOS)
 
 diagnose(M1_nbinom) 
+
 performance::check_zeroinflation(M1_nbinom)
 
+# # Zero-inflated
+# M1_zinb <- glmmTMB::glmmTMB(model.formula.WOS,
+#                              ziformula = ~ 1,
+#                              data = dbWOS,
+#                              family = nbinom2)
+
+#M1_hurdle <- update(M1_zinb, ziformula = ~ ., family = truncated_nbinom2) # Hurdle model
+
+# Comparing models
+AIC(M1, M1_nbinom)
+
 # Model validation
-performance::check_model(M1_nbinom)    
-performance::check_collinearity(M1_nbinom)
-
-# R^2
-(M1.R2 <- my.r2(M1_nbinom))
-
-############################################################################
-############################################################################
-# Modelling popular interest -----------------------------------------------
-############################################################################
-############################################################################
-
-dbWIKI2 <- db %>% dplyr::select(wiki = total_wiki_pgviews,
-                                kingdom,
-                                phylum,
-                                class,
-                                order,
-                                family,
-                                latitude,
-                                scaled_size,
-                                colorful,
-                                color_blu,
-                                color_red,
-                                scaled_range_size,
-                                domain_rec,
-                                IUCN_rec,
-                                scaled_uniqueness_family,
-                                common_name,
-                                human_use,
-                                harmful_to_human,
-                                scaled_log_distance_human) 
-
-# Missing data
-Amelia::missmap(dbWIKI2)
-dbWIKI <- na.omit(dbWIKI2)
-
-# Setting formula ---------------------------------------------------------
-
-model.formula.WIKI <- as.formula(paste0("wiki ~",
-                                        paste(colnames(dbWIKI)[7:ncol(dbWIKI)], collapse = " + "),
-                                        "+ (1 | phylum) + (1 | class) + (1 | order) + (1 | family)")) #+ (1 | family)
-
-# Fit the model -----------------------------------------------------------
-
-# First model
-M2 <- glmmTMB::glmmTMB(model.formula.WIKI,
-                       family = poisson, 
-                       data = dbWIKI)
-
-diagnose(M2)
-performance::check_overdispersion(M2) #model is overdispersed!
-performance::check_zeroinflation(M2)
-
-# Negative binomial
-M2_nbinom <- glmmTMB::glmmTMB(model.formula.WIKI,
-                              family = nbinom2, 
-                              data = dbWIKI)
-
-diagnose(M2_nbinom)
-performance::check_zeroinflation(M2_nbinom)
-
-# R^2
-(M2.R2 <- my.r2(M2_nbinom))
-
-############################################################################
-############################################################################
-# Saving the model output --------------------------------------------------
-############################################################################
-############################################################################
+performance::check_model(M1_hurdle)    
+performance::check_collinearity(M1_hurdle)
 
 # Summary table
-(par.M1 <- parameters::parameters(M1_nbinom))
-(par.M2 <- parameters::parameters(M2_nbinom))
+(par.M1 <- parameters::parameters(M1_zinb))
 
 table.M1 <- par.M1 %>% dplyr::select(Parameter,
+                         Component,
                          Effects,
                          Beta = Coefficient,
                          SE,
                          CI_low,
                          CI_high,
-                         z,
                          p) %>% 
                          data.frame() %>% 
                          mutate_if(is.numeric, ~ round(.,3)) ; rm(par.M1)
@@ -320,133 +287,100 @@ table.M1 <- table.M1[table.M1$Effects == "fixed",] %>%
             dplyr::select(-c(Effects)) %>% 
             na.omit()
 
-table.M2 <- par.M2 %>% dplyr::select(Parameter,
-                                     Effects,
-                                     Beta = Coefficient,
-                                     SE,
-                                     CI_low,
-                                     CI_high,
-                                     z,
-                                     p) %>% 
-  data.frame() %>% 
-  mutate_if(is.numeric, ~ round(.,3)) ; rm(par.M2)
+table.M1$Parameter <- as.factor(as.character(table.M1$Parameter))
+table.M1$Component <- as.factor(as.character(table.M1$Component))
 
-table.M2 <- table.M2[table.M2$Effects == "fixed",] %>% 
-  dplyr::select(-c(Effects)) %>% 
-  na.omit()
-
-table.M <- cbind(Model = c(rep("Web of Science",nrow(table.M1)),
-                           rep("Wikipedia",nrow(table.M2))),
-                 rbind(table.M1,table.M2)) ; rm(table.M1,table.M2)
-                 
-table.M$Parameter <- as.factor(as.character(table.M$Parameter))
-table.M$Model <- as.factor(as.character(table.M$Model))
-
-var.names <-  c("Intercept",
-               "Color blue [yes]",
-               "Color red [yes]",
-               "Colorful [yes]",
+names.M1 <-  c("Intercept",
+               "Color blue",
+               "Color red",
+               "Colorful",
                "Common name [yes]",
-               "Domain [freshwater]",
-               "Domain [marine]",
+               "Domain [aquatic]",
                "Domain [terrestrial]",
                "Harmful to humans [yes]",
                "Human use [yes]",
                "IUCN [endangered]",
                "IUCN [non-endangered]",
-               "Latitude",
                "Phylogenetic distance to humans",
                "Range size",
                "Organism size",
                "Family uniqueness (N° species)")
 
-levels(table.M$Parameter) <- var.names
+levels(table.M1$Component) <- c("Conditional", "Zero-inflated")
+levels(table.M1$Parameter) <- names.M1
 
-var.order <- c("Intercept",
-               "Organism size",
-               "Colorful [yes]",
-               "Color blue [yes]",
-               "Color red [yes]",
-               "Range size",
-               "Latitude",
-               "Family uniqueness (N° species)",
-               "Domain [freshwater]",
-               "Domain [marine]",
-               "Domain [terrestrial]",
-               "IUCN [endangered]",
-               "IUCN [non-endangered]",
-               "Common name [yes]",
-               "Human use [yes]",
-               "Harmful to humans [yes]",
-               "Phylogenetic distance to humans")
+order.M1 <- c("Intercept",
+              "Organism size",
+              "Color blue",
+              "Color red",
+              "Colorful",
+              "Domain [aquatic]",
+              "Domain [terrestrial]",
+              "IUCN [endangered]",
+              "IUCN [non-endangered]",
+              "Family uniqueness (N° species)",
+              "Range size",
+              "Common name [yes]",
+              "Harmful to humans [yes]",
+              "Human use [yes]",
+              "Phylogenetic distance to humans")
 
-table.M$Parameter <- factor(table.M$Parameter, rev(var.order)) #Sort
+table.M1$Parameter <- factor(table.M1$Parameter, rev(order.M1)) #Sort
 
 #Categorizing variables
 var.type <- c("Intercept",
-              "Ecological",
-              rep("Morphological",4),
-              rep("Ecological",7),
-              rep("Cultural",4))
-             
-table.M <- cbind(Type = rep(var.type,2), table.M)
+             rep("Cultural",3),
+             rep("Morphological",3),
+             rep("Ecological",4),
+             "Morphological",
+             rep("Ecological",2),
+             "Cultural")
+table.M1 <- cbind(Type = rep(var.type,2), table.M1)
 
-# Saving the table
+# R^2
+(M1.R2 <- my.r2(M1_hurdle))
 
-write.csv(table.M,"Tables/TableS1.csv")
+# A general look
+# sjPlot::plot_model(M1_hurdle, sort.est = FALSE, se = TRUE,
+#                    vline.color ="grey70",
+#                    show.values = TRUE, value.offset = .3) + theme_bw()
 
-############################################################################
-############################################################################
-# Visualizing the effect ---------------------------------------------------
-############################################################################
-############################################################################
+sign <- ifelse(table.M1$p > 0.05, "", ifelse(table.M1$p>0.01,"", " *")) #Significance
+col_p <- ifelse(table.M1$p > 0.05, "grey5", ifelse(table.M1$Beta>0,"orange", "blue") )
+col_type <- c("black",
+              rep(color_models[2],3),
+              rep(color_models[1],3),
+              rep(color_models[3],4),
+              color_models[1],
+              rep(color_models[3],2),
+              color_models[2])
 
-table.plot <- table.M[table.M$Parameter != "Intercept",] ; table.plot = droplevels(table.plot)
-
-sign <- ifelse(table.plot$p > 0.05, "", ifelse(table.plot$p>0.01,"", " *")) #Significance
-
-color.axis <- c(rep(color_models[3],4),
-                rep(color_models[2],8),
-                rep(color_models[1],4))
-
-(M1.2.forest_plot <- 
-    table.plot %>%
+#1 - inflated? Tutti insieme?
+(M1.forest_plot <- 
+    table.M1 %>% 
     ggplot2::ggplot(aes(x = Beta, y = Parameter)) + 
-    facet_wrap(. ~ Model, nrow = 1, ncol = 2) +  
-    geom_vline(lty = 3, size = 0.5, col = "grey50", xintercept = 0) +
-    geom_errorbar(aes(xmin = CI_low, xmax = CI_high, col = Type), width = 0)+
-    geom_point(aes(col = Type, fill = Type), size = 2, pch = 21) +
-    geom_text(aes(col = Type),label = paste0(round(table.plot$Beta, 3), sign, sep = "  "), vjust = - 1, size = 3) +
-    labs(x = expression(paste("Estimated beta" %+-% "95% Confidence interval")),
+    facet_wrap(. ~ Component, nrow = 1, ncol = 2) +  
+  geom_vline(lty = 3, size = 0.5, col = "grey50", xintercept = 0) +
+  geom_errorbar(aes(xmin = CI_low, xmax = CI_high), width = 0, col = rep(col_type,2))+
+  geom_point(size = 2, pch = 21, col = rep(col_type,2), fill = rep(col_type,2)) +
+  geom_text(
+    label = paste0(round(table.M1$Beta, 3), sign, sep = "  "),col = rep(col_type,2), vjust = - 1, size = 3) +
+  labs(title = "Scientific interest [N° papers in the Web of Science]",
+       #subtitle = paste0("[Sample size = ", nrow(dbWOS) ," observations]"),
+       x = expression(paste("Estimated beta" %+-% "95% Confidence interval")),
        y = NULL) +
-    
-    scale_color_manual(values = color_models)+
-    scale_fill_manual(values = color_models)+
-    
-    #R^2
-    geom_text(data = data.frame(x = 1.8, y = 14, Model = "Web of Science",
-                                label = paste0("R^2 ==",round(as.numeric(M1.R2[1]),2))),
-              aes(x = x, y = y, label = label),
+    geom_text(data = data.frame(x = 2.2, y = 2.4, Component = "Zero-inflated", 
+                                label = paste0("R^2 ==",round(as.numeric(M1.R2[1]),2))), 
+              aes(x = x, y = y, label = label), 
               size = 4, parse = TRUE)+
-    geom_text(data = data.frame(x = 1.8, y = 13, Model = "Web of Science",
-                                label = paste0("N ==",nrow(dbWOS))),
-              aes(x = x, y = y, label = label),
+    geom_text(data = data.frame(x = 2.2, y = 3.4, Component = "Zero-inflated", 
+                                label = paste0("N ==",nrow(dbWOS))), 
+              aes(x = x, y = y, label = label), 
               size = 4, parse = TRUE) +
-
-    geom_text(data = data.frame(x = 1.8, y = 14, Model = "Wikipedia",
-                                label = paste0("R^2 ==",round(as.numeric(M2.R2[1]),2))),
-              aes(x = x, y = y, label = label),
-              size = 4, parse = TRUE)+
-    geom_text(data = data.frame(x = 1.8, y = 13, Model = "Wikipedia",
-                                label = paste0("N ==",nrow(dbWIKI))),
-              aes(x = x, y = y, label = label),
-              size = 4, parse = TRUE) +
-    
-  theme_classic() + theme(legend.position = "none",
-                          axis.text = element_text(size = 12), 
-                          axis.title = element_text(size = 14),
-                          strip.text = element_text(size = 14),
-                          axis.text.y = element_text(colour = rev(color.axis)))
+  theme_classic() + theme(axis.text.y = element_text(colour = rev(c("black", 
+                                                                rep(color_models[1],4),
+                                                                rep(color_models[3],6),
+                                                                rep(color_models[2],4)))))
 )
 
 # Variance partitioning ---------------------------------------------------
@@ -454,25 +388,32 @@ color.axis <- c(rep(color_models[3],4),
 #Grouping
 morpho <- "colorful + color_blu + color_red + scaled_size"
 antro  <- "harmful_to_human + human_use + common_name + scaled_log_distance_human"
-eco    <- "latitude + IUCN_rec + domain_rec + scaled_range_size + scaled_uniqueness_family"
+eco    <- "IUCN_rec + domain_rec + scaled_range_size + scaled_uniqueness_family"
 
 #Setting formulas
 formula.morpho           <- as.formula(paste0("WOS ~ ",morpho,"+",random))
 formula.antro            <- as.formula(paste0("WOS ~ ",antro,"+",random))
 formula.eco              <- as.formula(paste0("WOS ~ ",eco,"+",random))
-formula.morpho.eco       <- as.formula(paste0("WOS ~ ",morpho,"+",eco,"+",random))
 formula.morpho.antro     <- as.formula(paste0("WOS ~ ",morpho,"+",antro,"+",random))
+formula.morpho.eco       <- as.formula(paste0("WOS ~ ",morpho,"+",eco,"+",random))
 formula.antro.eco        <- as.formula(paste0("WOS ~ ",antro,"+",eco,"+",random))
 formula.morpho.antro.eco <- as.formula(paste0("WOS ~ ",morpho,"+",antro,"+",eco,"+",random))
 
 #Fitting models
-M1_VPA1 <- glmmTMB::glmmTMB(formula.morpho, family = nbinom2, data = dbWOS)#A
-M1_VPA2 <- glmmTMB::glmmTMB(formula.antro, family = nbinom2, data = dbWOS)#B
-M1_VPA3 <- glmmTMB::glmmTMB(formula.eco, family = nbinom2, data = dbWOS)#C
-M1_VPA4 <- glmmTMB::glmmTMB(formula.morpho.eco, family = nbinom2, data = dbWOS)#AB
-M1_VPA5 <- glmmTMB::glmmTMB(formula.morpho.antro, family = nbinom2, data = dbWOS)#AC
-M1_VPA6 <- glmmTMB::glmmTMB(formula.antro.eco, family = nbinom2, data = dbWOS)#BC
-M1_VPA7 <- glmmTMB::glmmTMB(formula.morpho.antro.eco, family = nbinom2, data = dbWOS)#ABC
+M1_VPA1 <- glmmTMB::glmmTMB(formula.morpho,
+                         ziformula = ~ ., family = truncated_nbinom2, data = dbWOS)
+M1_VPA2 <- glmmTMB::glmmTMB(formula.antro,
+                         ziformula = ~ ., family = truncated_nbinom2, data = dbWOS)
+M1_VPA3 <- glmmTMB::glmmTMB(formula.eco,
+                         ziformula = ~ ., family = truncated_nbinom2, data = dbWOS)
+M1_VPA4 <- glmmTMB::glmmTMB(formula.morpho.antro,
+                         ziformula = ~ ., family = truncated_nbinom2, data = dbWOS)
+M1_VPA5 <- glmmTMB::glmmTMB(formula.morpho.eco,
+                         ziformula = ~ ., family = truncated_nbinom2, data = dbWOS)
+M1_VPA6 <- glmmTMB::glmmTMB(formula.antro.eco,
+                         ziformula = ~ ., family = truncated_nbinom2, data = dbWOS)
+M1_VPA7 <- glmmTMB::glmmTMB(formula.morpho.antro.eco,
+                         ziformula = ~ ., family = truncated_nbinom2, data = dbWOS)
 
 #VPA
 M1.VPA <- modEvA::varPart(A   = as.numeric(my.r2(M1_VPA1)$R2.marginal),
@@ -483,59 +424,210 @@ M1.VPA <- modEvA::varPart(A   = as.numeric(my.r2(M1_VPA1)$R2.marginal),
                           BC  = as.numeric(my.r2(M1_VPA6)$R2.marginal),
                           ABC = as.numeric(my.r2(M1_VPA7)$R2.marginal),
                           A.name = "Morphological",
-                          B.name = "Ecological",
-                          C.name = "Cultural", 
+                          B.name = "Cultural",
+                          C.name = "Ecological", 
                           plot = TRUE, 
                           plot.unexpl = TRUE)
 
 M1.VPA$Proportion <- round(M1.VPA$Proportion,3)
-M1.VPA$Proportion  <- ifelse(M1.VPA$Proportion<0,0,M1.VPA$Proportion) #converting negative to zero
 M1.random <- round(as.numeric(my.r2(M1_VPA7)[2]) - as.numeric(my.r2(M1_VPA7)[1]),3)
 M1.Unexplained <- M1.VPA$Proportion[8] - M1.random
 
-df.venn.M1 <- data.frame(x = c(3.2, 1, 2),
+df.venn <- data.frame(x = c(3.2, 1, 2),
                       y = c(1, 1, 2.8), 
                       labels = c(M1.VPA[1,1], M1.VPA[2,1], M1.VPA[3,1]),
-                      col.c = c("grey30","blue","violetred4"))
+                      col.c = color_models)
 
-(M1.venn <- df.venn.M1 %>% ggplot2::ggplot() + 
-      xlim(-3,6)+
-      ylim(-1,5)+
+(M1.venn <- df.venn %>% ggplot2::ggplot() + 
+      xlim(-2,6)+
+      ylim(-2,6)+
       ggforce::geom_circle(aes(x0 = x, y0 = y, r = 1.5, fill = col.c, color = col.c), alpha = .2, size = 1, show.legend = FALSE) + 
       scale_colour_identity() + 
       scale_fill_identity()+
-      annotate("text", x = df.venn.M1$x , y = df.venn.M1$y, label = df.venn.M1$labels, size = 5)+ #ABC
-      annotate("text", x = 2.1, y = 1, label = M1.VPA[4,1], size = 4)+ #AB
+      annotate("text", x = df.venn$x , y = df.venn$y, label = df.venn$labels, size = 5)+ #ABC
+      annotate("text", x = 2.1, y = 1, label = "0.0", size = 4)+ #AB
+      annotate("text", x = 2.7, y = 2,label = "0.0" ,size = 4)+ #AC
       annotate("text", x = 1.35, y = 2,label = M1.VPA[5,1] ,size = 4)+ #BC
-      annotate("text", x = 2.7, y = 2,label = M1.VPA[6,1] ,size = 4)+ #AC
-      annotate("text", x = 2.1, y = 1.6,label = round(M1.VPA[7,1],2), size = 3)+ #ABC
-      annotate("text", x = 4.4, y = -0.8, label ="Morphological", color = df.venn.M1$col.c[1], size = 6, fontface = "bold")+
-      annotate("text", x = -0.2, y = -0.8, label ="Ecological", color = df.venn.M1$col.c[2],size = 6, fontface = "bold")+
-      annotate("text", x = 2, y = 4.7, label="Cultural", color = df.venn.M1$col.c[3],size = 6, fontface = "bold") +
+      annotate("text", x = 2.1, y = 1.6,label = "0.02", size = 3)+ #ABC
+      annotate("text", x = 4.4, y = -0.8, label ="Morphological", color = df.venn$col.c[1], size = 4, fontface = "bold")+
+      annotate("text", x = -0.2, y = -0.8, label ="Cultural", color = df.venn$col.c[2],size = 4, fontface = "bold")+
+      annotate("text", x = 2, y = 4.7, label="Ecological", color = df.venn$col.c[3],size = 4, fontface = "bold") +
       annotate("text", x = 6, y = 3.8, label=paste("Unexplained = ", M1.Unexplained), color = "black",size = 4,hjust = 1) +
       annotate("text", x = 6, y = 3.5, label=paste("Random = ", M1.random), color = "black",size = 4,hjust = 1) +
       coord_fixed() + 
       theme_void())
 
+######################
+## Popular interets ##
+######################
+
+dbWIKI2 <- db %>% dplyr::select(wiki = total_wiki_pgviews,
+                                kingdom,
+                                phylum,
+                                class,
+                                order,
+                                family,
+                                #y = centroid_lat,
+                                #x = centroid_long,
+                                harmful_to_human,
+                                human_use,
+                                common_name,
+                                colorful,
+                                color_blu,
+                                color_red,
+                                IUCN_rec,
+                                domain_rec,
+                                starts_with("scaled_")) 
+
+# Missing data
+Amelia::missmap(dbWIKI2)
+dbWIKI <- na.omit(dbWIKI2)
+
+
+# Setting formula ---------------------------------------------------------
+
+model.formula.WIKI <- as.formula(paste0("wiki ~",
+                                   paste(colnames(dbWIKI)[7:ncol(dbWIKI)], collapse = " + "),
+                                   "+ (1 | phylum) + (1 | class) + (1 | order) + (1 | family)")) #+ (1 | family)
+
+# Fit the model -----------------------------------------------------------
+
+# First model
+M2 <- glmmTMB::glmmTMB(model.formula.WIKI,
+                       family = poisson, 
+                       data = dbWIKI)
+
+performance::check_overdispersion(M2) #model is overdispersed!
+
+# Negative binomial
+M2_nbinom <- glmmTMB::glmmTMB(model.formula.WIKI,
+                              family = nbinom2, 
+                              data = dbWIKI)
+
+performance::check_zeroinflation(M2_nbinom) # Yes!
+
+# Zero-inflated
+M2_zinb  <- glmmTMB::glmmTMB(model.formula.WIKI,
+                              ziformula = ~ 1,
+                              data = dbWIKI,
+                              family = nbinom2)
+
+# Comparing the models
+AIC(M2, M2_nbinom, M2_zinb) #M2_zinb
+
+# Model validation
+performance::check_model(M2_zinb)    
+performance::check_collinearity(M2_zinb)
+
+# Summary table
+(par.M2 <- parameters::parameters(M2_zinb))
+
+table.M2 <- par.M2 %>% dplyr::select(Parameter,
+                                     Component,
+                                     Effects,
+                                     Beta = Coefficient,
+                                     SE,
+                                     CI_low,
+                                     CI_high,
+                                     p) %>% 
+  data.frame() %>% 
+  mutate_if(is.numeric, ~ round(., 3)) ; rm(par.M2)
+
+table.M2 <- table.M2[table.M2$Effects == "fixed",] %>% 
+  dplyr::select(-c(Effects)) %>% 
+  na.omit()
+
+table.M2 <- table.M2[-16,]
+
+table.M2$Parameter <- as.factor(as.character(table.M2$Parameter))
+
+levels(table.M2$Parameter) <- names.M1
+table.M2$Parameter <- factor(table.M2$Parameter, rev(order.M1)) #Sort
+
+#Categorizing variables
+var.type <- c("Intercept",
+              rep("Cultural",3),
+              rep("Morphological",3),
+              rep("Ecological",4),
+              "Morphological",
+              rep("Ecological",2),
+              "Cultural")
+table.M2 <- cbind(Type = var.type, table.M2)
+
+# R^2
+(M2.R2 <- my.r2(M2_zinb))
+
+# A general look
+# sjPlot::plot_model(M1_hurdle, sort.est = FALSE, se = TRUE,
+#                    vline.color ="grey70",
+#                    show.values = TRUE, value.offset = .3) + theme_bw()
+sign <- ifelse(table.M2$p > 0.05, "", ifelse(table.M2$p>0.01,"", " *")) #Significance
+col_p <- ifelse(table.M2$p > 0.05, "grey5", ifelse(table.M2$Beta>0,"orange", "blue") )
+col_type <- c("black",
+              rep(color_models[2],3),
+              rep(color_models[1],3),
+              rep(color_models[3],4),
+              color_models[1],
+              rep(color_models[3],2),
+              color_models[2])
+
+(M2.forest_plot <- 
+    table.M2 %>% 
+    ggplot2::ggplot(aes(x = Beta, y = Parameter)) + 
+    geom_vline(lty = 3, size = 0.5, col = "grey50", xintercept = 0) +
+    geom_errorbar(aes(xmin = CI_low, xmax = CI_high), width = 0, col = col_type)+
+    geom_point(size = 2, pch = 21, col = col_type, fill = col_type) +
+    geom_text(
+      label = paste0(round(table.M2$Beta, 3), sign, sep = "  "), col = col_type, vjust = - 1, size = 3) +
+    labs(title = "General interest [N° views in Wikipedia]",
+         subtitle = " ",
+         x = expression(paste("Estimated beta" %+-% "95% Confidence interval")),
+         y = NULL) +
+    geom_text(data = data.frame(x = 5, y = 1.6, 
+                                label = paste0("R^2 ==",round(as.numeric(M2.R2[1]),2))), 
+              aes(x = x, y = y, label = label), 
+              size = 4, parse = TRUE)+
+    geom_text(data = data.frame(x = 5, y = 2.6,
+                                label = paste0("N ==",nrow(dbWIKI))), 
+              aes(x = x, y = y, label = label), 
+              size = 4, parse = TRUE) +
+    theme_classic() + theme(axis.text.y = element_text(colour = rev(c("black", 
+                                                                      rep(color_models[1],4),
+                                                                      rep(color_models[3],6),
+                                                                      rep(color_models[2],4)))))
+)
+
 # Variance partitioning ---------------------------------------------------
+
+#Grouping
+morpho <- "colorful + color_blu + color_red + scaled_size"
+antro  <- "harmful_to_human + human_use + common_name + scaled_log_distance_human"
+eco    <- "IUCN_rec + domain_rec + scaled_range_size + scaled_uniqueness_family"
 
 #Setting formulas
 formula.morpho           <- as.formula(paste0("wiki ~ ",morpho,"+",random))
 formula.antro            <- as.formula(paste0("wiki ~ ",antro,"+",random))
 formula.eco              <- as.formula(paste0("wiki ~ ",eco,"+",random))
-formula.morpho.eco       <- as.formula(paste0("wiki ~ ",morpho,"+",eco,"+",random))
 formula.morpho.antro     <- as.formula(paste0("wiki ~ ",morpho,"+",antro,"+",random))
+formula.morpho.eco       <- as.formula(paste0("wiki ~ ",morpho,"+",eco,"+",random))
 formula.antro.eco        <- as.formula(paste0("wiki ~ ",antro,"+",eco,"+",random))
 formula.morpho.antro.eco <- as.formula(paste0("wiki ~ ",morpho,"+",antro,"+",eco,"+",random))
 
 #Fitting models
-M2_VPA1 <- glmmTMB::glmmTMB(formula.morpho, family = nbinom2, data = dbWIKI)#A
-M2_VPA2 <- glmmTMB::glmmTMB(formula.antro, family = nbinom2, data = dbWIKI)#B
-M2_VPA3 <- glmmTMB::glmmTMB(formula.eco, family = nbinom2, data = dbWIKI)#C
-M2_VPA4 <- glmmTMB::glmmTMB(formula.morpho.eco, family = nbinom2, data = dbWIKI)#AB
-M2_VPA5 <- glmmTMB::glmmTMB(formula.morpho.antro, family = nbinom2, data = dbWIKI)#AC
-M2_VPA6 <- glmmTMB::glmmTMB(formula.antro.eco, family = nbinom2, data = dbWIKI)#BC
-M2_VPA7 <- glmmTMB::glmmTMB(formula.morpho.antro.eco, family = nbinom2, data = dbWIKI)#ABC
+M2_VPA1 <- glmmTMB::glmmTMB(formula.morpho,
+                            ziformula = ~ 1, family = nbinom2, data = dbWIKI)
+M2_VPA2 <- glmmTMB::glmmTMB(formula.antro,
+                            ziformula = ~ 1, family = nbinom2, data = dbWIKI)
+M2_VPA3 <- glmmTMB::glmmTMB(formula.eco,
+                            ziformula = ~ 1, family = nbinom2, data = dbWIKI)
+M2_VPA4 <- glmmTMB::glmmTMB(formula.morpho.antro,
+                            ziformula = ~ 1, family = nbinom2, data = dbWIKI)
+M2_VPA5 <- glmmTMB::glmmTMB(formula.morpho.eco,
+                            ziformula = ~ 1, family = nbinom2, data = dbWIKI)
+M2_VPA6 <- glmmTMB::glmmTMB(formula.antro.eco,
+                            ziformula = ~ 1, family = nbinom2, data = dbWIKI)
+M2_VPA7 <- glmmTMB::glmmTMB(formula.morpho.antro.eco,
+                            ziformula = ~ 1, family = nbinom2, data = dbWIKI)
 
 #VPA
 M2.VPA <- modEvA::varPart(A   = as.numeric(my.r2(M2_VPA1)$R2.marginal),
@@ -546,35 +638,34 @@ M2.VPA <- modEvA::varPart(A   = as.numeric(my.r2(M2_VPA1)$R2.marginal),
                           BC  = as.numeric(my.r2(M2_VPA6)$R2.marginal),
                           ABC = as.numeric(my.r2(M2_VPA7)$R2.marginal),
                           A.name = "Morphological",
-                          B.name = "Ecological",
-                          C.name = "Cultural", 
+                          B.name = "Cultural",
+                          C.name = "Ecological", 
                           plot = TRUE, 
                           plot.unexpl = TRUE)
 
 M2.VPA$Proportion <- round(M2.VPA$Proportion,3)
-M2.VPA$Proportion  <- ifelse(M2.VPA$Proportion<0,0,M2.VPA$Proportion) #converting negative to zero
 M2.random <- round(as.numeric(my.r2(M2_VPA7)[2]) - as.numeric(my.r2(M2_VPA7)[1]),3)
-M2.Unexplained <- M2.VPA$Proportion[8] - M2.random
+M2.Unexplained <- M2.VPA$Proportion[8] - M1.random
 
-df.venn.M2 <- data.frame(x = c(3.2, 1, 2),
+df.venn <- data.frame(x = c(3.2, 1, 2),
                       y = c(1, 1, 2.8), 
-                      labels = c(M2.VPA[1,1], M2.VPA[2,1], M2.VPA[3,1]),
-                      col.c = c("grey30","blue","violetred4"))
+                      labels = c("0.000",M2.VPA[2,1], M2.VPA[3,1]),
+                      col.c = color_models)
 
-(M2.venn <- df.venn.M2 %>% ggplot2::ggplot() + 
-    xlim(-3,6)+
-    ylim(-1,5)+
-    ggforce::geom_circle(aes(x0 = x, y0 = y, r = 1.5, fill = col.c, color = col.c), alpha = .2, size = 1, show.legend = FALSE) + 
+(M2.venn <- df.venn %>% ggplot2::ggplot() + 
+    xlim(-2,6)+
+    ylim(-2,6)+
+    geom_circle(aes(x0 = x, y0 = y, r = 1.5, fill = col.c, color = col.c), alpha = .2, size = 1, show.legend = FALSE) + 
     scale_colour_identity() + 
     scale_fill_identity()+
-    annotate("text", x = df.venn.M2$x , y = df.venn.M2$y, label = df.venn.M2$labels, size = 5)+ #ABC
+    annotate("text", x = df.venn$x , y = df.venn$y, label = df.venn$labels, size = 5)+ #A - B - C
     annotate("text", x = 2.1, y = 1, label = M2.VPA[4,1], size = 4)+ #AB
-    annotate("text", x = 1.35, y = 2,label = M2.VPA[5,1] ,size = 4)+ #BC
-    annotate("text", x = 2.7, y = 2,label = M2.VPA[6,1] ,size = 4)+ #AC
-    annotate("text", x = 2.1, y = 1.6,label = round(M2.VPA[7,1],2), size = 3)+ #ABC
-    annotate("text", x = 4.4, y = -0.8, label ="Morphological", color = df.venn.M2$col.c[1], size = 6, fontface = "bold")+
-    annotate("text", x = -0.2, y = -0.8, label = "Ecological", color = df.venn.M2$col.c[2],size = 6, fontface = "bold")+
-    annotate("text", x = 2, y = 4.7, label="Cultural", color = df.venn.M2$col.c[3],size = 6, fontface = "bold") +
+    annotate("text", x = 2.7, y = 2,label =  "<0.001",size = 4)+ #AC
+    annotate("text", x = 1.35, y = 2,label = "0.000" ,size = 4)+ #BC
+    annotate("text", x = 2.1, y = 1.6,label = "<0.01", size = 3)+ #ABC
+    annotate("text", x = 4.4, y = -0.8, label ="Morphological", color = df.venn$col.c[1], size = 4, fontface = "bold")+
+    annotate("text", x = -0.2, y = -0.8, label ="Cultural", color = df.venn$col.c[2],size = 4, fontface = "bold")+
+    annotate("text", x = 2, y = 4.7, label="Ecological", color = df.venn$col.c[3],size = 4, fontface = "bold") +
     annotate("text", x = 6, y = 3.8, label=paste("Unexplained = ", M2.Unexplained), color = "black",size = 4,hjust = 1) +
     annotate("text", x = 6, y = 3.5, label=paste("Random = ", M2.random), color = "black",size = 4,hjust = 1) +
     coord_fixed() + 
@@ -704,17 +795,14 @@ dev.off()
 # Figure 2 ----------------------------------------------------------------
 
 #Merging
-pdf(file = "Figures/Figure_2.pdf", width = 11, height = 11)
+pdf(file = "Figures/Figure_2.pdf", width = 14, height = 12)
 
-ggpubr::ggarrange(M1.2.forest_plot,
-                  ggpubr::ggarrange(M1.venn, M2.venn, 
-                                    ncol = 2, hjust = -5, vjust = 2,
-                                    labels = c("B", "C")),
+ggpubr::ggarrange(M1.forest_plot,M2.forest_plot,M1.venn,M2.venn,
                   common.legend = FALSE,
-                  #hjust = -5,
+                  hjust = -5,
                   #align = "h",
-                  labels = c("A", ""),
-                  ncol=1, nrow=2) 
+                  labels = c("A", "B","C", "D"),
+                  ncol=2, nrow=2) 
 
 dev.off()
 
