@@ -237,6 +237,8 @@ performance::check_collinearity(M1_nbinom)
 # R^2
 (M1.R2 <- my.r2(M1_nbinom))
 
+performance::r2(M1_nbinom)
+
 ############################################################################
 ############################################################################
 # Modelling popular interest -----------------------------------------------
@@ -416,7 +418,7 @@ color.axis <- c(rep(color_models[3],4),
     geom_vline(lty = 3, size = 0.5, col = "grey50", xintercept = 0) +
     geom_errorbar(aes(xmin = CI_low, xmax = CI_high, col = Type), width = 0)+
     geom_point(aes(col = Type, fill = Type), size = 2, pch = 21) +
-    geom_text(aes(col = Type),label = paste0(round(table.plot$Beta, 3), sign, sep = "  "), vjust = - 1, size = 3) +
+    geom_text(aes(col = Type),label = paste0(round(table.plot$Beta, 3), sign, sep = "  "), vjust = - 1, size = 2.5) +
     labs(x = expression(paste("Estimated beta" %+-% "95% Confidence interval")),
        y = NULL) +
     
@@ -580,13 +582,342 @@ df.venn.M2 <- data.frame(x = c(3.2, 1, 2),
     coord_fixed() + 
     theme_void())
 
+############################################################################
+############################################################################
+# Modelling major phyla ----------------------------------------------------
+############################################################################
+############################################################################
+
+#Modelling 
+db.phyla <- db %>% dplyr::select(phylum,
+                                 WOS = Total_wos,
+                                 wiki = total_wiki_pgviews,
+                                 class,
+                                 order,
+                                 family,
+                                 latitude,
+                                 scaled_size,
+                                 colorful,
+                                 color_blu,
+                                 color_red,
+                                 scaled_range_size,
+                                 domain_rec,
+                                 IUCN_rec,
+                                 scaled_uniqueness_genus = log_uniqueness_genus,
+                                 common_name,
+                                 human_use,
+                                 harmful_to_human)
+                                # scaled_log_distance_human) 
+
+db.phyla$scaled_uniqueness_genus <- scale(db.phyla$scaled_uniqueness_genus)
+
+# Setting formula ---------------------------------------------------------
+
+random.phyla <- "(1 | class) + (1 | order) + (1 | family)"
+
+#Enough levels in Class?
+nlevels(droplevels(db.phyla[db.phyla$phylum == "Chordata",]$class))
+nlevels(droplevels(db.phyla[db.phyla$phylum == "Tracheophyta",]$class))
+nlevels(droplevels(db.phyla[db.phyla$phylum == "Arthropoda",]$class))
+
+# Setting formula
+model.formula.phyla.WOS <- as.formula(paste0("WOS ~",
+                                       paste(colnames(db.phyla)[7:ncol(db.phyla)], collapse = " + "),
+                                       "+",
+                                       random.phyla))
+
+model.formula.phyla.wiki <- as.formula(paste0("wiki ~",
+                                             paste(colnames(db.phyla)[7:ncol(db.phyla)], collapse = " + "),
+                                             "+",
+                                             random.phyla))
+
+# WOS models --------------------------------------------------------------
+
+M.WOS.chordata <- glmmTMB::glmmTMB(model.formula.phyla.WOS, family = nbinom2, 
+                               data = db.phyla[db.phyla$phylum == "Chordata",],
+                               control=glmmTMBControl(optimizer=optim, optArgs=list(method="BFGS")))
+
+M.WOS.arthropoda <- glmmTMB::glmmTMB(model.formula.phyla.WOS, family = nbinom2, 
+                               data = db.phyla[db.phyla$phylum == "Arthropoda",],
+                               control=glmmTMBControl(optimizer=optim, optArgs=list(method="BFGS")))
+
+M.WOS.tracheo <- glmmTMB::glmmTMB(model.formula.phyla.WOS, family = nbinom2, 
+                                 data = db.phyla[db.phyla$phylum == "Tracheophyta",],
+                                 control=glmmTMBControl(optimizer=optim, optArgs=list(method="BFGS")))
+
+# Check
+performance::check_model(M.WOS.chordata)    
+performance::check_model(M.WOS.arthropoda)    
+performance::check_model(M.WOS.tracheo)    
+
+# R^2
+(R2.WOS.chordata  <- my.r2(M.WOS.chordata))
+(R2.WOS.arthropoda <- my.r2(M.WOS.arthropoda))
+(R2.WOS.tracheo    <- my.r2(M.WOS.tracheo))
+
+# WIKI models -------------------------------------------------------------
+
+M.wiki.chordata <- glmmTMB::glmmTMB(model.formula.phyla.wiki, family = nbinom2, 
+                                   data = db.phyla[db.phyla$phylum == "Chordata",],
+                                   control=glmmTMBControl(optimizer=optim, optArgs=list(method="BFGS")))
+
+M.wiki.arthropoda <- glmmTMB::glmmTMB(model.formula.phyla.wiki, family = nbinom2, 
+                                     data = db.phyla[db.phyla$phylum == "Arthropoda",],
+                                     control=glmmTMBControl(optimizer=optim, optArgs=list(method="BFGS")))
+
+M.wiki.tracheo <- glmmTMB::glmmTMB(model.formula.phyla.wiki, family = nbinom2, 
+                                  data = db.phyla[db.phyla$phylum == "Tracheophyta",],
+                                  control=glmmTMBControl(optimizer=optim, optArgs=list(method="BFGS")))
+
+# Check
+performance::check_model(M.wiki.chordata)    
+performance::check_model(M.wiki.arthropoda)    
+performance::check_model(M.wiki.tracheo)    
+
+# R^2
+(R2.wiki.chordata   <- my.r2(M.wiki.chordata))
+(R2.wiki.arthropoda <- my.r2(M.wiki.arthropoda))
+(R2.wiki.tracheo    <- my.r2(M.wiki.tracheo))
+
+# Setting tables WOS -------------------------------------------------------
+
+# Summary table
+(par.chordata.WOS   <- parameters::parameters(M.WOS.chordata))
+(par.arthropoda.WOS <- parameters::parameters(M.WOS.arthropoda))
+(par.tracheo.WOS    <- parameters::parameters(M.WOS.tracheo))
+
+table.chordata.WOS <- par.chordata.WOS %>% 
+  dplyr::select(Parameter,Effects,Beta = Coefficient, SE,CI_low,CI_high,z,p) %>% 
+  data.frame() %>% mutate_if(is.numeric, ~ round(.,3)) ; rm(par.chordata.WOS)
+
+table.arthropoda.WOS  <- par.arthropoda.WOS  %>% 
+  dplyr::select(Parameter,Effects,Beta = Coefficient, SE,CI_low,CI_high,z,p) %>% 
+  data.frame() %>% mutate_if(is.numeric, ~ round(.,3)) ; rm(par.arthropoda.WOS)
+
+table.tracheo.WOS <- par.tracheo.WOS %>% 
+  dplyr::select(Parameter,Effects,Beta = Coefficient, SE,CI_low,CI_high,z,p) %>% 
+  data.frame() %>% mutate_if(is.numeric, ~ round(.,3)) ; rm(par.tracheo.WOS)
+
+table.chordata.WOS   <- table.chordata.WOS[table.chordata.WOS$Effects == "fixed",] %>% dplyr::select(-c(Effects)) %>%  na.omit()
+table.arthropoda.WOS <- table.arthropoda.WOS[table.arthropoda.WOS$Effects == "fixed",] %>% dplyr::select(-c(Effects)) %>%  na.omit()
+table.tracheo.WOS    <- table.tracheo.WOS[table.tracheo.WOS$Effects == "fixed",] %>% dplyr::select(-c(Effects)) %>%  na.omit()
+
+#adding missing factor
+
+add <- table.chordata.WOS[8:9,]
+add[1:2,2:7] <- NA
+
+table.tracheo.WOS <- rbind(table.tracheo.WOS[1:7,],
+                           add,
+                           table.tracheo.WOS[8:14,]) ; rm(add)
+
+table.sub.WOS <- cbind(Model = c(rep("Chordata",nrow(table.chordata.WOS)),
+                                 rep("Arthropoda",nrow(table.arthropoda.WOS)),
+                                 rep("Tracheophyta",nrow(table.tracheo.WOS))),
+                       rbind(table.chordata.WOS,table.arthropoda.WOS,table.tracheo.WOS)) ; rm(table.chordata.WOS,table.arthropoda.WOS,table.tracheo.WOS)
+
+table.sub.WOS$Parameter <- as.factor(as.character(table.sub.WOS$Parameter))
+table.sub.WOS$Model     <- as.factor(as.character(table.sub.WOS$Model))
+
+var.names.sub <-  c("Intercept",
+                    "Color blue [yes]",
+                    "Color red [yes]",
+                    "Colorful [yes]",
+                    "Common name [yes]",
+                    "Domain [freshwater]",
+                    "Domain [marine]",
+                    "Domain [terrestrial]",
+                    "Harmful to humans [yes]",
+                    "Human use [yes]",
+                    "IUCN [endangered]",
+                    "IUCN [non-endangered]",
+                    "Latitude",
+                    "Range size",
+                    "Organism size",
+                    "Genus uniqueness (N° species)")
+
+levels(table.sub.WOS$Parameter) <- var.names.sub
+
+var.order.sub <- c("Intercept",
+                   "Organism size",
+                   "Colorful [yes]",
+                   "Color blue [yes]",
+                   "Color red [yes]",
+                   "Range size",
+                   "Latitude",
+                   "Genus uniqueness (N° species)",
+                   "Domain [freshwater]",
+                   "Domain [marine]",
+                   "Domain [terrestrial]",
+                   "IUCN [endangered]",
+                   "IUCN [non-endangered]",
+                   "Common name [yes]",
+                   "Human use [yes]",
+                   "Harmful to humans [yes]")
+
+table.sub.WOS$Parameter <- factor(table.sub.WOS$Parameter, rev(var.order.sub)) #Sort
+
+#Categorizing variables
+var.type.sub <- c("Intercept",
+              "Ecological",
+              rep("Morphological",4),
+              rep("Ecological",7),
+              rep("Cultural",3))
+
+table.sub.WOS <- cbind(Type = rep(var.type.sub,3), table.sub.WOS)
+
+# Saving the table
+write.csv(table.M,"Tables/TableS2_subWOS.csv")
+
+# Plotting WOS ------------------------------------------------------------------
+
+color.axis.sub <- c(rep(color_models[3],4),
+                    rep(color_models[2],8),
+                    rep(color_models[1],3))
+
+(M.WOS.sub.forest_plot <- 
+   table.sub.WOS[table.sub.WOS$Parameter != "Intercept",] %>%
+   ggplot2::ggplot(aes(x = Beta, y = Parameter)) + 
+   facet_wrap(. ~ Model, nrow = 1, ncol = 3) +  
+   geom_vline(lty = 3, size = 0.5, col = "grey50", xintercept = 0) +
+   geom_errorbar(aes(xmin = CI_low, xmax = CI_high, col = Type), width = 0)+
+   geom_point(aes(col = Type, fill = Type), size = 2, pch = 21) +
+   #geom_text(aes(col = Type),label = paste0(round(table.sub.WOS$Beta, 3), sign, sep = "  "), vjust = - 1, size = 2.5) +
+   labs(title = "N° papers in the Web of Science",
+        x = expression(paste("Estimated beta" %+-% "95% Confidence interval")),
+        y = NULL) +
+   
+   scale_color_manual(values = color_models)+
+   scale_fill_manual(values = color_models)+
+   
+   # #R^2
+   geom_text(data = data.frame(x = -4, y = 1, Model = "Arthropoda",
+                               label = paste0("R^2 ==",round(as.numeric(R2.wiki.arthropoda[1]),2))),
+             aes(x = x, y = y, label = label),
+             size = 3, parse = TRUE)+
+   
+   geom_text(data = data.frame(x = -4, y = 1, Model = "Chordata",
+                                label = paste0("R^2 ==",round(as.numeric(R2.wiki.chordata[1]),2))),
+              aes(x = x, y = y, label = label),
+              size = 3, parse = TRUE)+
+    
+    geom_text(data = data.frame(x = -4, y = 1, Model = "Tracheophyta",
+                                label = paste0("R^2 ==",round(as.numeric(R2.wiki.tracheo[1]),2))),
+              aes(x = x, y = y, label = label),
+              size = 3, parse = TRUE)+
+   
+   
+   theme_classic() + theme(legend.position = "none",
+                           axis.text = element_text(size = 12), 
+                           axis.title = element_text(size = 14),
+                           strip.text = element_text(size = 14),
+                           axis.text.y = element_text(colour = rev(color.axis.sub)))
+)
+
+# Setting tables WIKI -------------------------------------------------------
+
+# Summary table
+(par.chordata.wiki   <- parameters::parameters(M.wiki.chordata))
+(par.arthropoda.wiki <- parameters::parameters(M.wiki.arthropoda))
+(par.tracheo.wiki    <- parameters::parameters(M.wiki.tracheo))
+
+table.chordata.wiki <- par.chordata.wiki %>% 
+  dplyr::select(Parameter,Effects,Beta = Coefficient, SE,CI_low,CI_high,z,p) %>% 
+  data.frame() %>% mutate_if(is.numeric, ~ round(.,3)) ; rm(par.chordata.wiki)
+
+table.arthropoda.wiki  <- par.arthropoda.wiki  %>% 
+  dplyr::select(Parameter,Effects,Beta = Coefficient, SE,CI_low,CI_high,z,p) %>% 
+  data.frame() %>% mutate_if(is.numeric, ~ round(.,3)) ; rm(par.arthropoda.wiki)
+
+table.tracheo.wiki <- par.tracheo.wiki %>% 
+  dplyr::select(Parameter,Effects,Beta = Coefficient, SE,CI_low,CI_high,z,p) %>% 
+  data.frame() %>% mutate_if(is.numeric, ~ round(.,3)) ; rm(par.tracheo.wiki)
+
+table.chordata.wiki   <- table.chordata.wiki[table.chordata.wiki$Effects == "fixed",] %>% dplyr::select(-c(Effects)) %>%  na.omit()
+table.arthropoda.wiki <- table.arthropoda.wiki[table.arthropoda.wiki$Effects == "fixed",] %>% dplyr::select(-c(Effects)) %>%  na.omit()
+table.tracheo.wiki    <- table.tracheo.wiki[table.tracheo.wiki$Effects == "fixed",] %>% dplyr::select(-c(Effects)) %>%  na.omit()
+
+#adding missing factor
+
+add <- table.chordata.wiki[8:9,]
+add[1:2,2:7] <- NA
+
+table.tracheo.wiki <- rbind(table.tracheo.wiki[1:7,],
+                           add,
+                           table.tracheo.wiki[8:14,]) ; rm(add)
+
+table.sub.wiki <- cbind(Model = c(rep("Chordata",nrow(table.chordata.wiki)),
+                                 rep("Arthropoda",nrow(table.arthropoda.wiki)),
+                                 rep("Tracheophyta",nrow(table.tracheo.wiki))),
+                       rbind(table.chordata.wiki,table.arthropoda.wiki,table.tracheo.wiki)) ; rm(table.chordata.wiki,table.arthropoda.wiki,table.tracheo.wiki)
+
+table.sub.wiki$Parameter <- as.factor(as.character(table.sub.wiki$Parameter))
+table.sub.wiki$Model     <- as.factor(as.character(table.sub.wiki$Model))
+
+levels(table.sub.wiki$Parameter) <- var.names.sub
+table.sub.wiki$Parameter <- factor(table.sub.wiki$Parameter, rev(var.order.sub)) #Sort
+
+#Categorizing variables
+
+table.sub.wiki <- cbind(Type = rep(var.type.sub,3), table.sub.wiki)
+
+# Saving the table
+write.csv(table.M,"Tables/TableS2_sub_wiki.csv")
+
+# Plotting wiki ------------------------------------------------------------------
+
+color.axis.sub <- c(rep(color_models[3],4),
+                    rep(color_models[2],8),
+                    rep(color_models[1],3))
+
+(M.wiki.sub.forest_plot <- 
+    table.sub.wiki[table.sub.wiki$Parameter != "Intercept",] %>%
+    ggplot2::ggplot(aes(x = Beta, y = Parameter)) + 
+    facet_wrap(. ~ Model, nrow = 1, ncol = 3) +  
+    geom_vline(lty = 3, size = 0.5, col = "grey50", xintercept = 0) +
+    geom_errorbar(aes(xmin = CI_low, xmax = CI_high, col = Type), width = 0)+
+    geom_point(aes(col = Type, fill = Type), size = 2, pch = 21) +
+    #geom_text(aes(col = Type),label = paste0(round(table.sub.wiki$Beta, 3), sign, sep = "  "), vjust = - 1, size = 2.5) +
+    labs(title = "N° views in Wikipedia",
+         x = expression(paste("Estimated beta" %+-% "95% Confidence interval")),
+         y = NULL) +
+    
+    scale_color_manual(values = color_models)+
+    scale_fill_manual(values = color_models)+
+    
+    # #R^2
+    geom_text(data = data.frame(x = -1, y = 1, Model = "Arthropoda",
+                                label = paste0("R^2 ==",round(as.numeric(R2.wiki.arthropoda[1]),2))),
+              aes(x = x, y = y, label = label),
+              size = 3, parse = TRUE)+
+    
+    geom_text(data = data.frame(x = -1, y = 1, Model = "Chordata",
+                                label = paste0("R^2 ==",round(as.numeric(R2.wiki.chordata[1]),2))),
+              aes(x = x, y = y, label = label),
+              size = 3, parse = TRUE)+
+    
+    geom_text(data = data.frame(x = 3, y = 1, Model = "Tracheophyta",
+                                label = paste0("R^2 ==",round(as.numeric(R2.wiki.tracheo[1]),2))),
+              aes(x = x, y = y, label = label),
+              size = 3, parse = TRUE)+
+    
+    
+    theme_classic() + theme(legend.position = "none",
+                            axis.text = element_text(size = 12), 
+                            axis.title = element_text(size = 14),
+                            strip.text = element_text(size = 14),
+                            axis.text.y = element_text(colour = rev(color.axis.sub)))
+)
+
+####################################################################################
+####################################################################################
 ####################################################################################
 # Figures --------------------------------------------------------------------------
 ####################################################################################
+####################################################################################
+####################################################################################
 
 # Figure 1 ----------------------------------------------------------------
-
-custom_color <- c("grey50","purple","green")
 
 blankPlot <- db %>% ggplot(aes(x = log(Total_wos+1), 
                                y = log(total_wiki_pgviews+1), 
@@ -708,10 +1039,10 @@ pdf(file = "Figures/Figure_2.pdf", width = 11, height = 11)
 
 ggpubr::ggarrange(M1.2.forest_plot,
                   ggpubr::ggarrange(M1.venn, M2.venn, 
-                                    ncol = 2, hjust = -5, vjust = 2,
+                                    ncol = 2, hjust = -5, vjust = 4,
                                     labels = c("B", "C")),
                   common.legend = FALSE,
-                  #hjust = -5,
+                  hjust = -5,
                   #align = "h",
                   labels = c("A", ""),
                   ncol=1, nrow=2) 
@@ -719,7 +1050,19 @@ ggpubr::ggarrange(M1.2.forest_plot,
 dev.off()
 
 # Figure 3 ----------------------------------------------------------------
-(plot3 <- db %>% 
+
+pdf(file = "Figures/Figure_3.pdf", width = 10, height = 11)
+ggpubr::ggarrange(M.WOS.sub.forest_plot,
+                  M.wiki.sub.forest_plot,
+                  common.legend = FALSE,
+                  hjust = -5,
+                  align = "v",
+                  labels = c("A", "B"),
+                  ncol=1, nrow=2) 
+dev.off()
+
+# Figure 4 ----------------------------------------------------------------
+(plot4a <- db %>% 
    drop_na(kingdom, phylum, Total_wos) %>% 
    ggplot(aes(y = log(Total_wos+1), x = phylum,
               fill = kingdom, color = kingdom)) +
@@ -731,9 +1074,9 @@ dev.off()
     theme_classic() +
     custom_theme + theme(legend.position = "none", axis.text.y = element_text(size = 12)) + coord_flip())
 
-(plot3 <- db %>% 
+(plot4b <- db %>% 
     drop_na(kingdom, phylum, Total_wos) %>% 
-    ggplot(aes(y = log(total_wiki_pgviews+1), x = reorder(phylum,total_wiki_pgviews), fill = kingdom, fill = kingdom, color = kingdom)) +
+    ggplot(aes(y = log(total_wiki_pgviews+1), x = phylum, fill = kingdom, fill = kingdom, color = kingdom)) +
     geom_point(position = position_jitter(width = 0.35), size = 2, alpha = 0.3) +
     geom_boxplot(width = .8, outlier.shape = NA, alpha = 0.2, col = "grey20") +
     labs(y = "N° views in Wikipedia [logarithm]", x = NULL) +
@@ -741,4 +1084,16 @@ dev.off()
     scale_fill_manual(values = custom_color)+
     theme_classic() +
     custom_theme + theme(axis.text.y = element_text(size = 12)) + coord_flip())
+
+
+pdf(file = "Figures/Figure_4.pdf", width = 10, height = 7)
+ggpubr::ggarrange(plot4a,
+                  plot4b,
+                  common.legend = FALSE,
+                  hjust = -5,
+                  align = "v",
+                  labels = c("A", "B"),
+                  ncol=2, nrow=1) 
+dev.off()
+
 
