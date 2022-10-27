@@ -19,10 +19,12 @@ library("Amelia")
 library("dplyr")
 library("ggforce")
 library("ggpubr")
+library("ggthemes")
 library("glmmTMB")
 library("modEvA")
 library("parameters")
 library("performance")
+library("png")
 library("sjPlot")
 library("tidylog")
 library("tidyverse") 
@@ -31,9 +33,23 @@ library("tidyverse")
 
 source("Functions/Functions.r")
 
+# Loading silhouettes ------------------------------------------------------
+
+# Taken from PhyloPics: http://phylopic.org/
+# (With open license)
+
+animal_png <- png::readPNG("Phylopics/Animal.png")
+fungi_png  <- png::readPNG("Phylopics/Fungi.png")
+plant_png  <- png::readPNG("Phylopics/Plant.png")
+
 # Loading the database  ---------------------------------------------------
 
 db <- read.csv2(file = "./Data/SampleTREE_191022.csv", sep = '\t', dec = ',', header = TRUE, as.is = FALSE)
+
+nrow(db)
+
+length(na.omit(db$size_m))/nrow(db)
+length(na.omit(db$size_f))/nrow(db)
 
 # Converting factors to factors
 db$model_organism   <- as.factor(db$model_organism)
@@ -236,7 +252,6 @@ performance::check_collinearity(M1_nbinom)
 
 # R^2
 (M1.R2 <- my.r2(M1_nbinom))
-
 performance::r2(M1_nbinom)
 
 ############################################################################
@@ -405,7 +420,7 @@ write.csv(table.M,"Tables/TableS1.csv")
 
 table.plot <- table.M[table.M$Parameter != "Intercept",] ; table.plot = droplevels(table.plot)
 
-sign <- ifelse(table.plot$p > 0.05, "", ifelse(table.plot$p>0.01,"", " *")) #Significance
+sign <- ifelse(table.plot$p > 0.05, "", ifelse(table.plot$p > 0.001,"", " *")) #Significance
 
 color.axis <- c(rep(color_models[3],4),
                 rep(color_models[2],8),
@@ -945,8 +960,11 @@ blankPlot <- db %>% ggplot(aes(x = log(Total_wos+1),
 
 # Summarize centroid
 
-centroid = db %>% dplyr::group_by(phylum) %>% summarize(mean_WOS = mean( log(Total_wos+1), na.rm = TRUE),
+centroid <- db %>% dplyr::group_by(phylum) %>% summarize(mean_WOS = mean( log(Total_wos+1), na.rm = TRUE),
                                               mean_WIKI = mean( log(total_wiki_pgviews+1), na.rm = TRUE))
+
+#Can you include a dashed int=0,slope=1 line in the scatterplot between Wikipedia and WOS interest? (interesting result when looking at the colour of the points, meets the expectations).
+
 cor_plot <- ggplot() + 
   xlab("N° papers in the Web of Science [logarithm]")+
   ylab("N° views in Wikipedia [logarithm]")+
@@ -1096,4 +1114,53 @@ ggpubr::ggarrange(plot4a,
                   ncol=2, nrow=1) 
 dev.off()
 
+# Figure map --------------------------------------------------------------
 
+# Load world map
+world <- ggplot2::map_data("world")
+
+map.total <- ggplot() +
+  geom_map(data = world, map = world,
+           aes(long, lat, map_id = region),
+           color = "black", fill = "grey10", size = 0.1) +
+  geom_point(data = db,
+             aes(centroid_long, centroid_lat, fill = kingdom), alpha = 0.7, shape =21, color = "black", size = 1.8) +
+  scale_fill_manual("",values = custom_color) +
+  ggthemes::theme_map() + theme(legend.position = "top")
+
+map.animal <- ggplot() +
+  geom_map(data = world, map = world,
+           aes(long, lat, map_id = region),
+           color = "black", fill = "grey10", size = 0.1) +
+  geom_point(data = db[db$kingdom == "Animalia",],
+             aes(centroid_long, centroid_lat), alpha = 0.7, shape =21, color = "black", fill = custom_color[1], size = 1.8) +
+  annotation_custom(grid::rasterGrob(animal_png), xmin = -140, xmax = -100, ymin = -10, ymax = -70)+
+  ggthemes::theme_map() 
+
+map.plantae <- ggplot() +
+  geom_map(data = world, map = world,
+           aes(long, lat, map_id = region),
+           color = "black", fill = "grey10", size = 0.1) +
+  geom_point(data = db[db$kingdom == "Plantae",],
+             aes(centroid_long, centroid_lat), alpha = 0.7, shape =21, color = "black", fill = custom_color[3], size = 1.8) +
+  annotation_custom(grid::rasterGrob(plant_png), xmin = -140, xmax = -100, ymin = -10, ymax = -70)+
+  ggthemes::theme_map()
+
+map.fungi <- ggplot() +
+  geom_map(data = world, map = world,
+           aes(long, lat, map_id = region),
+           color = "black", fill = "grey10", size = 0.1) +
+  geom_point(data = db[db$kingdom == "Fungi",],
+             aes(centroid_long, centroid_lat), alpha = 0.7, shape =21, color = "black", fill = custom_color[2], size = 1.8) +
+  annotation_custom(grid::rasterGrob(fungi_png), xmin = -140, xmax = -100, ymin = -10, ymax = -70)+
+  ggthemes::theme_map()
+
+
+pdf(file = "Figures/Figure_map.pdf", width = 10, height = 5)
+ggpubr::ggarrange(map.total, map.animal, map.plantae, map.fungi,
+                  common.legend = FALSE,
+                  hjust = 0,
+                  align = "hv",
+                  labels = c("A", "B", "C", "D"),
+                  ncol = 2, nrow = 2) 
+dev.off()

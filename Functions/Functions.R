@@ -14,7 +14,9 @@
 # Colors
 
 color_models <- c("violetred4","blue","grey30")
-custom_color <- c("grey50","purple","green")
+custom_color <- c("grey50", #animalia
+                  "purple", #fungi
+                  "green") #plantae
 
 # Custom theme for ggplot2
 custom_theme <- theme(#text = element_text(family = "Arial"),
