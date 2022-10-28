@@ -25,6 +25,8 @@ library("modEvA")
 library("parameters")
 library("performance")
 library("png")
+library("raster")
+library("sf")
 library("sjPlot")
 library("tidylog")
 library("tidyverse") 
@@ -182,6 +184,7 @@ db <- db %>%
                 scaled_size = scale(log_size_avg, center = TRUE, scale = TRUE))
 
 db$latitude <- scale(abs(db$centroid_lat))
+
 
 ############################################################################
 ############################################################################
@@ -1127,13 +1130,12 @@ points <- db %>%
   na.omit() %>% 
   sf::st_as_sf(coords=c("centroid_long", "centroid_lat"))
 
-library("raster")
-library("sf")
-r = raster::raster(points, ncols=30, nrows=30)
+r <- raster::raster(points, ncols = 30, nrows = 30)
+extent(r) <- c(-180,180,-90,90)
 
 # Count the number of points on each pixel
-(map.total <- raster::rasterize(points, 
-                               raster::raster(points, ncols=30, nrows=30), 
+map.total <- raster::rasterize(points, 
+                               r, 
                                fun="count") %>% 
                    as.data.frame(xy = TRUE) %>%
                    ggplot2::ggplot() +
@@ -1147,7 +1149,6 @@ r = raster::raster(points, ncols=30, nrows=30)
           legend.direction ="horizontal",
           legend.key.height = unit(.5, 'cm'), #change legend key height
           legend.key.width = unit(.5, 'cm'))
-  )
 
 # map.total <- ggplot() +
 #   geom_map(data = world, map = world,
