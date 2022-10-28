@@ -50,7 +50,9 @@ nrow(db)
 
 length(na.omit(db$size_m))/nrow(db)
 length(na.omit(db$size_f))/nrow(db)
+length(na.omit(db$photo_google))/nrow(db)
 
+sum(db$photo_google,na.rm = T)/nrow(db)
 # Converting factors to factors
 db$model_organism   <- as.factor(db$model_organism)
 db$harmful_to_human <- as.factor(db$harmful_to_human)
@@ -968,6 +970,7 @@ centroid <- db %>% dplyr::group_by(phylum) %>% summarize(mean_WOS = mean( log(To
 cor_plot <- ggplot() + 
   xlab("N° papers in the Web of Science [logarithm]")+
   ylab("N° views in Wikipedia [logarithm]")+
+  geom_abline(intercept = 0, slope = 1, lty = 3, size = 0.5, col = "grey50")+
   geom_point(data = db, aes(x = log(Total_wos+1), y = log(total_wiki_pgviews+1), color = kingdom),
              alpha = 0.4, size = 2)+
   geom_smooth(data = db, aes(x = log(Total_wos+1), y = log(total_wiki_pgviews+1)),
@@ -1119,14 +1122,41 @@ dev.off()
 # Load world map
 world <- ggplot2::map_data("world")
 
-map.total <- ggplot() +
+points <- db %>% 
+  dplyr::select(centroid_long,centroid_lat) %>% 
+  na.omit() %>% 
+  sf::st_as_sf(coords=c("centroid_long", "centroid_lat"))
+
+library("raster")
+library("sf")
+r = raster::raster(points, ncols=30, nrows=30)
+
+# Count the number of points on each pixel
+(map.total <- raster::rasterize(points, 
+                               raster::raster(points, ncols=30, nrows=30), 
+                               fun="count") %>% 
+                   as.data.frame(xy = TRUE) %>%
+                   ggplot2::ggplot() +
+  geom_raster(aes(x=x, y=y, fill = layer), alpha = .9) +
   geom_map(data = world, map = world,
-           aes(long, lat, map_id = region),
-           color = "black", fill = "grey10", size = 0.1) +
-  geom_point(data = db,
-             aes(centroid_long, centroid_lat, fill = kingdom), alpha = 0.7, shape =21, color = "black", size = 1.8) +
-  scale_fill_manual("",values = custom_color) +
-  ggthemes::theme_map() + theme(legend.position = "top")
+             aes(long, lat, map_id = region),
+             color = "black", fill = "transparent", size = 0.5) +
+  scale_fill_gradient("", low="grey70", high="blue", na.value="white") +
+        ggthemes::theme_map() +
+    theme(legend.position = c(0,0.1),
+          legend.direction ="horizontal",
+          legend.key.height = unit(.5, 'cm'), #change legend key height
+          legend.key.width = unit(.5, 'cm'))
+  )
+
+# map.total <- ggplot() +
+#   geom_map(data = world, map = world,
+#            aes(long, lat, map_id = region),
+#            color = "black", fill = "grey10", size = 0.1) +
+#   geom_point(data = db,
+#              aes(centroid_long, centroid_lat, fill = kingdom), alpha = 0.7, shape =21, color = "black", size = 1.8) +
+#   scale_fill_manual("",values = custom_color) +
+#   ggthemes::theme_map() + theme(legend.position = "top")
 
 map.animal <- ggplot() +
   geom_map(data = world, map = world,

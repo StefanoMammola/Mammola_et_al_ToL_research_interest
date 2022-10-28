@@ -9,6 +9,7 @@
 
 # Script to extract data from IUCN
 
+citation("rgbif")
 # Loading R packages ------------------------------------------------------
 
 library("httr")       #<---- to set internet settings
