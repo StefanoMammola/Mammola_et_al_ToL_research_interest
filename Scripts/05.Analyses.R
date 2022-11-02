@@ -18,6 +18,7 @@
 library("Amelia")
 library("dplyr")
 library("ggforce")
+library("ggimage")
 library("ggpubr")
 library("ggthemes")
 library("glmmTMB")
@@ -91,11 +92,13 @@ range(db$wiki_langs, na.rm = TRUE) ; median(db$wiki_langs, na.rm = TRUE)
 range(db$wiki_mean_month_pgviews, na.rm = TRUE) ; median(db$wiki_mean_month_pgviews, na.rm = TRUE)
 
 # Distribution
-ggplot(db, aes(x = Total_wos)) + geom_dotplot(binaxis='x', stackdir='center',dotsize=0.1) + theme_bw()
+ggplot(db, aes(x = Total_wos)) + geom_dotplot(binaxis='x', 
+                                              stackdir='center', 
+                                              dotsize = 0.5, binwidth = 50) + theme_bw()
 
-ggplot(db, aes(x = total_wiki_pgviews)) + geom_dotplot(binaxis='x', stackdir='center',dotsize=0.1) + theme_bw()
-ggplot(db, aes(x = wiki_langs)) + geom_dotplot(binaxis='x', stackdir='center',dotsize=0.1) + theme_bw()
-ggplot(db, aes(x = wiki_mean_month_pgviews)) + geom_dotplot(binaxis='x', stackdir='center',dotsize=0.1) + theme_bw()
+ggplot(db, aes(x = total_wiki_pgviews)) + geom_dotplot(binaxis='x', 
+                                                       stackdir='center', 
+                                                       dotsize = 0.1) + theme_bw()
 
 # Correlations 
 db %>% dplyr::select(Total_wos, total_wiki_pgviews, wiki_langs, wiki_mean_month_pgviews) %>% 
@@ -103,7 +106,7 @@ db %>% dplyr::select(Total_wos, total_wiki_pgviews, wiki_langs, wiki_mean_month_
 
 ## Variables X ##
 # Distribution 
-ggplot(db, aes(x = uniqueness_family)) + geom_dotplot(binaxis='x', stackdir='center',dotsize=0.1) + theme_bw()
+ggplot(db, aes(x = uniqueness_family)) + geom_dotplot(binaxis='x', stackdir='center',dotsize=0.1,binwidth = 200) + theme_bw()
 ggplot(db, aes(x = range_size)) + geom_dotplot(binaxis='x', stackdir='center',dotsize=0.1) + theme_bw()
 ggplot(db, aes(x = size_avg)) + geom_dotplot(binaxis='x', stackdir='center',dotsize=0.1) + theme_bw()
 ggplot(db, aes(x = centroid_lat)) + geom_dotplot(binaxis='x', stackdir='center',dotsize=0.1) + theme_bw()
@@ -192,7 +195,7 @@ db <- db %>%
                 scaled_range_size = scale(log_range_size, center = TRUE, scale = TRUE),
                 scaled_size = scale(log_size_avg, center = TRUE, scale = TRUE))
 
-db$latitude <- scale(abs(db$centroid_lat))
+#db$latitude <- scale(abs(db$centroid_lat))
 
 ############################################################################
 ############################################################################
@@ -207,12 +210,10 @@ dbWOS2 <- db %>% dplyr::select(WOS = Total_wos,
                                order,
                                family,
                                biogeography,
-                               latitude,
                                scaled_size,
                                colorful,
                                color_blu,
                                color_red,
-                               mimetism,
                                scaled_range_size,
                                domain_rec,
                                IUCN_rec,
@@ -229,14 +230,11 @@ dbWOS <- na.omit(dbWOS2)
 
 # plot(dbWOS$WOS)
 # #identify(dbWOS$WOS)
-# dbWOS <- dbWOS[dbWOS$WOS < 3900,]
 
 # Setting formula ---------------------------------------------------------
 
 # random structure
-random <- "(1 | phylum) + (1 | class) + (1 | order) + (1 | family)"
-
-random <- "(1 | phylum) + (1 | class) + (1 | order) + (1 | family) + (1 | biogeography)"
+random <- "(1 | phylum) + (1 | class) + (1 | order) + (1 | biogeography)"
 
 #formula
 model.formula.WOS <- as.formula(paste0("WOS ~",
@@ -251,6 +249,7 @@ M1 <- glmmTMB::glmmTMB(model.formula.WOS,
                        family = poisson, 
                        data = dbWOS)
 
+# Model validation
 diagnose(M1)
 performance::check_overdispersion(M1) #Model is overdispersed
 performance::check_zeroinflation(M1) #Underfitting zeros
@@ -258,19 +257,35 @@ performance::check_zeroinflation(M1) #Underfitting zeros
 # Negative binomial
 M1_nbinom <- glmmTMB::glmmTMB(model.formula.WOS,
                               family = nbinom2, 
+                              data = dbWOS[-1827,])
+
+# Model validation
+diagnose(M1_nbinom) 
+performance::check_collinearity(M1_nbinom)
+performance::check_zeroinflation(M1_nbinom)
+performance::check_model(M1_nbinom)
+
+dev.off()
+plot(fitted(M1_nbinom))
+#identify(fitted(M1_nbinom)) #1827 
+
+#refitting the model without the outlier
+dbWOS[1827,] #elephant...
+dbWOS <- dbWOS[-1827,]
+
+M1_nbinom <- glmmTMB::glmmTMB(model.formula.WOS,
+                              family = nbinom2, 
                               data = dbWOS)
 
 diagnose(M1_nbinom) 
-performance::check_zeroinflation(M1_nbinom)
 
 # Model validation
-performance::check_model(M1_nbinom)    
 performance::check_collinearity(M1_nbinom)
+performance::check_zeroinflation(M1_nbinom)
+performance::check_model(M1_nbinom)
 
 # R^2
-(M1.R2 <- my.r2(M1_nbinom))
-performance::r2(M1_nbinom)
-
+(M1.R2 <- performance::r2(M1_nbinom))
 summary(M1_nbinom)
 
 ############################################################################
@@ -285,7 +300,7 @@ dbWIKI2 <- db %>% dplyr::select(wiki = total_wiki_pgviews,
                                 class,
                                 order,
                                 family,
-                                latitude,
+                                biogeography,
                                 scaled_size,
                                 colorful,
                                 color_blu,
@@ -306,8 +321,9 @@ dbWIKI <- na.omit(dbWIKI2)
 # Setting formula ---------------------------------------------------------
 
 model.formula.WIKI <- as.formula(paste0("wiki ~",
-                                        paste(colnames(dbWIKI)[7:ncol(dbWIKI)], collapse = " + "),
-                                        "+ (1 | phylum) + (1 | class) + (1 | order) + (1 | family)")) #+ (1 | family)
+                                        paste(colnames(dbWIKI)[8:ncol(dbWIKI)], collapse = " + "),
+                                        "+",
+                                        random))
 
 # Fit the model -----------------------------------------------------------
 
@@ -325,11 +341,15 @@ M2_nbinom <- glmmTMB::glmmTMB(model.formula.WIKI,
                               family = nbinom2, 
                               data = dbWIKI)
 
-diagnose(M2_nbinom)
+# Model validation
+diagnose(M2_nbinom) 
+performance::check_collinearity(M2_nbinom)
 performance::check_zeroinflation(M2_nbinom)
+performance::check_model(M2_nbinom)
 
 # R^2
-(M2.R2 <- my.r2(M2_nbinom))
+(M2.R2 <- performance::r2(M2_nbinom))
+summary(M2_nbinom)
 
 ############################################################################
 ############################################################################
@@ -390,7 +410,6 @@ var.names <-  c("Intercept",
                "Human use [yes]",
                "IUCN [endangered]",
                "IUCN [non-endangered]",
-               "Latitude",
                "Phylogenetic distance to humans",
                "Range size",
                "Organism size",
@@ -404,7 +423,6 @@ var.order <- c("Intercept",
                "Color blue [yes]",
                "Color red [yes]",
                "Range size",
-               "Latitude",
                "Family uniqueness (N° species)",
                "Domain [freshwater]",
                "Domain [marine]",
@@ -420,7 +438,6 @@ table.M$Parameter <- factor(table.M$Parameter, rev(var.order)) #Sort
 
 #Categorizing variables
 var.type <- c("Intercept",
-              "Ecological",
               rep("Morphological",4),
               rep("Ecological",7),
               rep("Cultural",4))
@@ -439,10 +456,10 @@ write.csv(table.M,"Tables/TableS1.csv")
 
 table.plot <- table.M[table.M$Parameter != "Intercept",] ; table.plot = droplevels(table.plot)
 
-sign <- ifelse(table.plot$p > 0.05, "", ifelse(table.plot$p > 0.001,"", " *")) #Significance
+sign <- ifelse(table.plot$p > 0.05, "", ifelse(table.plot$p > 0.01,"", " *")) #Significance
 
 color.axis <- c(rep(color_models[3],4),
-                rep(color_models[2],8),
+                rep(color_models[2],7),
                 rep(color_models[1],4))
 
 (M1.2.forest_plot <- 
@@ -461,7 +478,7 @@ color.axis <- c(rep(color_models[3],4),
     
     #R^2
     geom_text(data = data.frame(x = 1.8, y = 14, Model = "Web of Science",
-                                label = paste0("R^2 ==",round(as.numeric(M1.R2[1]),2))),
+                                label = paste0("R^2 ==",round(as.numeric(M1.R2[2]),2))),
               aes(x = x, y = y, label = label),
               size = 4, parse = TRUE)+
     geom_text(data = data.frame(x = 1.8, y = 13, Model = "Web of Science",
@@ -470,7 +487,7 @@ color.axis <- c(rep(color_models[3],4),
               size = 4, parse = TRUE) +
 
     geom_text(data = data.frame(x = 1.8, y = 14, Model = "Wikipedia",
-                                label = paste0("R^2 ==",round(as.numeric(M2.R2[1]),2))),
+                                label = paste0("R^2 ==",round(as.numeric(M2.R2[2]),2))),
               aes(x = x, y = y, label = label),
               size = 4, parse = TRUE)+
     geom_text(data = data.frame(x = 1.8, y = 13, Model = "Wikipedia",
@@ -490,7 +507,7 @@ color.axis <- c(rep(color_models[3],4),
 #Grouping
 morpho <- "colorful + color_blu + color_red + scaled_size"
 antro  <- "harmful_to_human + human_use + common_name + scaled_log_distance_human"
-eco    <- "latitude + IUCN_rec + domain_rec + scaled_range_size + scaled_uniqueness_family"
+eco    <- "IUCN_rec + domain_rec + scaled_range_size + scaled_uniqueness_family"
 
 #Setting formulas
 formula.morpho           <- as.formula(paste0("WOS ~ ",morpho,"+",random))
@@ -628,8 +645,7 @@ db.phyla <- db %>% dplyr::select(phylum,
                                  wiki = total_wiki_pgviews,
                                  class,
                                  order,
-                                 family,
-                                 latitude,
+                                 biogeography,
                                  scaled_size,
                                  colorful,
                                  color_blu,
@@ -641,13 +657,12 @@ db.phyla <- db %>% dplyr::select(phylum,
                                  common_name,
                                  human_use,
                                  harmful_to_human)
-                                # scaled_log_distance_human) 
 
 db.phyla$scaled_uniqueness_genus <- scale(db.phyla$scaled_uniqueness_genus)
 
 # Setting formula ---------------------------------------------------------
 
-random.phyla <- "(1 | class) + (1 | order) + (1 | family)"
+random.phyla <- "(1 | class) + (1 | order) + (1 | biogeography)"
 
 #Enough levels in Class?
 nlevels(droplevels(db.phyla[db.phyla$phylum == "Chordata",]$class))
@@ -738,12 +753,12 @@ table.tracheo.WOS    <- table.tracheo.WOS[table.tracheo.WOS$Effects == "fixed",]
 
 #adding missing factor
 
-add <- table.chordata.WOS[8:9,]
+add <- table.chordata.WOS[7:8,]
 add[1:2,2:7] <- NA
 
-table.tracheo.WOS <- rbind(table.tracheo.WOS[1:7,],
+table.tracheo.WOS <- rbind(table.tracheo.WOS[1:6,],
                            add,
-                           table.tracheo.WOS[8:14,]) ; rm(add)
+                           table.tracheo.WOS[7:13,]) ; rm(add)
 
 table.sub.WOS <- cbind(Model = c(rep("Chordata",nrow(table.chordata.WOS)),
                                  rep("Arthropoda",nrow(table.arthropoda.WOS)),
@@ -765,7 +780,6 @@ var.names.sub <-  c("Intercept",
                     "Human use [yes]",
                     "IUCN [endangered]",
                     "IUCN [non-endangered]",
-                    "Latitude",
                     "Range size",
                     "Organism size",
                     "Genus uniqueness (N° species)")
@@ -778,7 +792,6 @@ var.order.sub <- c("Intercept",
                    "Color blue [yes]",
                    "Color red [yes]",
                    "Range size",
-                   "Latitude",
                    "Genus uniqueness (N° species)",
                    "Domain [freshwater]",
                    "Domain [marine]",
@@ -793,7 +806,6 @@ table.sub.WOS$Parameter <- factor(table.sub.WOS$Parameter, rev(var.order.sub)) #
 
 #Categorizing variables
 var.type.sub <- c("Intercept",
-              "Ecological",
               rep("Morphological",4),
               rep("Ecological",7),
               rep("Cultural",3))
@@ -806,7 +818,7 @@ write.csv(table.M,"Tables/TableS2_subWOS.csv")
 # Plotting WOS ------------------------------------------------------------------
 
 color.axis.sub <- c(rep(color_models[3],4),
-                    rep(color_models[2],8),
+                    rep(color_models[2],7),
                     rep(color_models[1],3))
 
 (M.WOS.sub.forest_plot <- 
@@ -823,30 +835,50 @@ color.axis.sub <- c(rep(color_models[3],4),
    
    scale_color_manual(values = color_models)+
    scale_fill_manual(values = color_models)+
+    
+    xlim(-5,5)+
    
    # #R^2
    geom_text(data = data.frame(x = -4, y = 1, Model = "Arthropoda",
-                               label = paste0("R^2 ==",round(as.numeric(R2.wiki.arthropoda[1]),2))),
+                               label = paste0("R^2 ==",round(as.numeric(R2.WOS.arthropoda[1]),2))),
              aes(x = x, y = y, label = label),
              size = 3, parse = TRUE)+
    
    geom_text(data = data.frame(x = -4, y = 1, Model = "Chordata",
-                                label = paste0("R^2 ==",round(as.numeric(R2.wiki.chordata[1]),2))),
+                                label = paste0("R^2 ==",round(as.numeric(R2.WOS.chordata[1]),2))),
               aes(x = x, y = y, label = label),
               size = 3, parse = TRUE)+
     
-    geom_text(data = data.frame(x = -4, y = 1, Model = "Tracheophyta",
-                                label = paste0("R^2 ==",round(as.numeric(R2.wiki.tracheo[1]),2))),
+   geom_text(data = data.frame(x = -4, y = 1, 
+                               Model = "Tracheophyta",
+                              label = paste0("R^2 ==",round(as.numeric(R2.WOS.tracheo[1]),2))),
               aes(x = x, y = y, label = label),
               size = 3, parse = TRUE)+
-   
-   
+    
+    ggimage::geom_phylopic(data = data.frame(x = -4, y = 12, Model = "Arthropoda",
+                                             image = "593cd880-1440-4562-b589-264cc6f9e5f2"),  
+                           aes(x = x, y = y, image = image),
+                           size=.2, color = "grey20") +
+    
+    ggimage::geom_phylopic(data = data.frame(x = -4, y = 12, Model = "Chordata",
+                                             image = "6682f694-1c10-4386-a6e5-361581400f15"),  
+                           aes(x = x, y = y, image = image),
+                           size=.2, color = "grey20") +
+    
+    ggimage::geom_phylopic(data = data.frame(x = -4, y = 12, Model = "Tracheophyta",
+                                         image = "29762b5d-82b9-4fd5-908e-986b5340cadc"),  
+                           aes(x = x, y = y, image = image),
+                           size=.2, color = "grey20") +
+  
+
    theme_classic() + theme(legend.position = "none",
-                           axis.text = element_text(size = 12), 
-                           axis.title = element_text(size = 14),
-                           strip.text = element_text(size = 14),
+                           axis.title.x = element_blank(), 
+                           axis.title.y = element_text(size = 12),
+                           axis.text = element_text(size = 10),
+                           strip.text = element_text(size = 12),
                            axis.text.y = element_text(colour = rev(color.axis.sub)))
 )
+
 
 # Setting tables WIKI -------------------------------------------------------
 
@@ -873,12 +905,12 @@ table.tracheo.wiki    <- table.tracheo.wiki[table.tracheo.wiki$Effects == "fixed
 
 #adding missing factor
 
-add <- table.chordata.wiki[8:9,]
+add <- table.chordata.wiki[7:8,]
 add[1:2,2:7] <- NA
 
-table.tracheo.wiki <- rbind(table.tracheo.wiki[1:7,],
+table.tracheo.wiki <- rbind(table.tracheo.wiki[1:6,],
                            add,
-                           table.tracheo.wiki[8:14,]) ; rm(add)
+                           table.tracheo.wiki[7:13,]) ; rm(add)
 
 table.sub.wiki <- cbind(Model = c(rep("Chordata",nrow(table.chordata.wiki)),
                                  rep("Arthropoda",nrow(table.arthropoda.wiki)),
@@ -901,7 +933,7 @@ write.csv(table.M,"Tables/TableS2_sub_wiki.csv")
 # Plotting wiki ------------------------------------------------------------------
 
 color.axis.sub <- c(rep(color_models[3],4),
-                    rep(color_models[2],8),
+                    rep(color_models[2],7),
                     rep(color_models[1],3))
 
 (M.wiki.sub.forest_plot <- 
@@ -919,27 +951,31 @@ color.axis.sub <- c(rep(color_models[3],4),
     scale_color_manual(values = color_models)+
     scale_fill_manual(values = color_models)+
     
+    xlim(-5,5)+
+    
     # #R^2
-    geom_text(data = data.frame(x = -1, y = 1, Model = "Arthropoda",
+    geom_text(data = data.frame(x = -4, y = 1, Model = "Arthropoda",
                                 label = paste0("R^2 ==",round(as.numeric(R2.wiki.arthropoda[1]),2))),
               aes(x = x, y = y, label = label),
               size = 3, parse = TRUE)+
     
-    geom_text(data = data.frame(x = -1, y = 1, Model = "Chordata",
+    geom_text(data = data.frame(x = -4, y = 1, Model = "Chordata",
                                 label = paste0("R^2 ==",round(as.numeric(R2.wiki.chordata[1]),2))),
               aes(x = x, y = y, label = label),
               size = 3, parse = TRUE)+
     
-    geom_text(data = data.frame(x = 3, y = 1, Model = "Tracheophyta",
+    geom_text(data = data.frame(x = -4, y = 1, Model = "Tracheophyta",
                                 label = paste0("R^2 ==",round(as.numeric(R2.wiki.tracheo[1]),2))),
               aes(x = x, y = y, label = label),
               size = 3, parse = TRUE)+
     
     
     theme_classic() + theme(legend.position = "none",
-                            axis.text = element_text(size = 12), 
-                            axis.title = element_text(size = 14),
-                            strip.text = element_text(size = 14),
+                            strip.background = element_blank(),
+                            strip.text.x = element_blank(),
+                            axis.text = element_text(size = 10), 
+                            axis.title = element_text(size = 12),
+                            strip.text = element_text(size = 12),
                             axis.text.y = element_text(colour = rev(color.axis.sub)))
 )
 
@@ -984,6 +1020,8 @@ centroid <- db %>% dplyr::group_by(phylum) %>% summarize(mean_WOS = mean( log(To
 
 #Can you include a dashed int=0,slope=1 line in the scatterplot between Wikipedia and WOS interest? (interesting result when looking at the colour of the points, meets the expectations).
 
+M3.gam <- gam::gam(log(Total_wos+1) ~ log(total_wiki_pgviews+1), data = db)
+
 cor_plot <- ggplot() + 
   xlab("N° papers in the Web of Science [logarithm]")+
   ylab("N° views in Wikipedia [logarithm]")+
@@ -1013,19 +1051,15 @@ cor_plot <- ggplot() +
   
   scale_color_manual("",values = custom_color)+
   theme_classic() + theme(legend.position = "none",
-        axis.text.y=element_text(size=10, angle=0,hjust = 0.5,colour ="grey20"),
-        axis.title.y=element_text(size=10, angle=90,colour ="black"),
+        axis.text=element_text(size=10, angle=0,hjust = 0.5,colour ="grey30"),
         axis.ticks.y = element_line(color = "grey20",size = 0.7),
         axis.line.y = element_line(color = "grey20",size = 0.7, linetype = "solid"),
-        
-        axis.text.x = element_text(size = 10,angle=0,vjust=0.5,colour = "grey20"),
-        axis.title.x=element_text(size=10,colour = "black"),
         axis.ticks.x = element_line(color = "grey20",size = 0.7),
         axis.line.x = element_line(color = "grey20",size = 0.7, linetype = "solid"))
 
 density_WOS <- db %>% ggplot(aes(x = log(Total_wos+1), 
                              color = kingdom, fill = kingdom)) +
-  geom_density(alpha = 0.1)+
+  geom_density(alpha = 0.3)+
   
   scale_x_continuous(  
     labels=c("0", "3", "6","9"),
@@ -1044,7 +1078,7 @@ density_WOS <- db %>% ggplot(aes(x = log(Total_wos+1),
 
 density_WIKI <- db %>% ggplot(aes(x = log(total_wiki_pgviews+1), 
                                   color = kingdom, fill = kingdom)) +
-  geom_density(alpha = 0.1)+
+  geom_density(alpha = 0.3)+
   scale_color_manual(values = custom_color)+
   scale_fill_manual(values = custom_color)+
   
@@ -1057,7 +1091,7 @@ density_WIKI <- db %>% ggplot(aes(x = log(total_wiki_pgviews+1),
   theme_classic() + coord_flip() + 
   
   theme(legend.position = "none",
-        axis.text.y = element_text(size = 10,angle=0,vjust=0.5),
+        axis.text.y = element_text(size = 10,angle=0,vjust=0.5,colour = "grey30"),
         axis.ticks.y = element_line(color = "grey20",size = 0.7),
         axis.line.y = element_line(color = "grey20",size = 0.7, linetype = "solid"),
         axis.ticks.x = element_line(color = "grey20",size = 0.7),
@@ -1065,8 +1099,8 @@ density_WIKI <- db %>% ggplot(aes(x = log(total_wiki_pgviews+1),
 
 pdf(file = "./Figures/Figure_1.pdf", width = 7, height = 5)
 
-(plot_cor <- gridExtra::grid.arrange(density_WOS, blankPlot, cor_plot, density_WIKI, 
-                          ncol=2, nrow=2, widths=c(3, 1.7), heights=c(1.7, 3)) )
+(plot_cor <- gridExtra::grid.arrange(density_WOS, blankPlot, cor_plot, density_WIKI,
+                          ncol=2, nrow=2, widths=c(2.5, 1.7), heights=c(1.7, 2.5)))
 
 dev.off()
 
@@ -1089,7 +1123,7 @@ dev.off()
 
 # Figure 3 ----------------------------------------------------------------
 
-pdf(file = "Figures/Figure_3.pdf", width = 10, height = 11)
+pdf(file = "Figures/Figure_3.pdf", width = 12, height = 7.5)
 ggpubr::ggarrange(M.WOS.sub.forest_plot,
                   M.wiki.sub.forest_plot,
                   common.legend = FALSE,
@@ -1132,6 +1166,20 @@ ggpubr::ggarrange(plot4a,
                   align = "v",
                   labels = c("A", "B"),
                   ncol=2, nrow=1) 
+dev.off()
+
+
+pdf(file = "Figures/Figure_1test.pdf", width = 10, height = 10)
+ggpubr::ggarrange(plot_cor,
+                  ggpubr::ggarrange(plot4a,
+                                    plot4b, 
+                                    ncol = 2, hjust = 0, vjust = 1,
+                                    labels = c("B", "C")),
+                  common.legend = FALSE,
+                  hjust = 0,
+                  align = "v",
+                  labels = c("A", ""),
+                  ncol=1, nrow=2) 
 dev.off()
 
 # Figure map --------------------------------------------------------------
@@ -1209,3 +1257,59 @@ ggpubr::ggarrange(map.total, map.animal, map.plantae, map.fungi,
                   labels = c("A", "B", "C", "D"),
                   ncol = 2, nrow = 2) 
 dev.off()
+
+#residuals
+
+dbRES <- db %>% dplyr::select(WOS = Total_wos,
+                              WIKI = total_wiki_pgviews,
+                               kingdom,
+                               phylum,
+                               class,
+                               order,
+                               family,
+                               biogeography,
+                               scaled_size,
+                               colorful,
+                               color_blu,
+                               color_red,
+                               scaled_range_size,
+                               domain_rec,
+                               IUCN_rec,
+                               scaled_uniqueness_family,
+                               common_name,
+                               human_use,
+                               harmful_to_human,
+                               scaled_log_distance_human) 
+
+dbRES <- na.omit(dbRES)
+
+M3.gam <- gam::gam(log(WOS+1) ~ log(WIKI+1), data = dbRES)
+
+dbRES <- data.frame(res = residuals(M3.gam), dbRES) %>% dplyr::select(-c(WOS,WIKI))
+
+# random structure
+random <- "(1 | phylum) + (1 | class) + (1 | order) + (1 | biogeography)"
+
+#formula
+model.formula.RES <- as.formula(paste0("res ~",
+                                       paste(colnames(dbRES)[8:ncol(dbRES)], collapse = " + "),
+                                       "+",
+                                       random))
+
+# Fit the model -----------------------------------------------------------
+
+# First model
+M1 <- glmmTMB::glmmTMB(model.formula.RES,
+                       family = gaussian, 
+                       data = dbRES)
+
+
+performance::check_collinearity(M1)
+performance::check_model(M1)
+summary(M1)
+
+sjPlot::plot_model(M1, sort.est = FALSE, se = TRUE,
+                   vline.color ="grey70",
+                   show.values = TRUE, value.offset = .3) + theme_bw()
+
+
