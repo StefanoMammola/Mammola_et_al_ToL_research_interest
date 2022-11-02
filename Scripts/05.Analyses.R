@@ -47,14 +47,20 @@ plant_png  <- png::readPNG("Phylopics/Plant.png")
 # Loading the database  ---------------------------------------------------
 
 db <- read.csv2(file = "./Data/SampleTREE_191022.csv", sep = '\t', dec = ',', header = TRUE, as.is = FALSE)
+db$species_name <- paste(db$genus, db$species)
 
-nrow(db)
+region <- read.csv2(file = "./Data/joined_fada.csv", 
+                    sep = ',', dec = '.', header = TRUE, as.is = FALSE) %>% 
+            dplyr::select(species_name = name, biogeography = name_2)
+
+db <- db %>% dplyr::left_join(region, by = "species_name")
 
 length(na.omit(db$size_m))/nrow(db)
 length(na.omit(db$size_f))/nrow(db)
 length(na.omit(db$photo_google))/nrow(db)
 
 sum(db$photo_google,na.rm = T)/nrow(db)
+
 # Converting factors to factors
 db$model_organism   <- as.factor(db$model_organism)
 db$harmful_to_human <- as.factor(db$harmful_to_human)
@@ -63,6 +69,7 @@ db$common_name      <- as.factor(db$common_name)
 db$colorful         <- as.factor(db$colorful)
 db$color_blu        <- as.factor(db$color_blu)
 db$color_red        <- as.factor(db$color_red)
+db$biogeography     <- as.factor(db$biogeography)
 
 ####################################################################################
 # Data exploration --------------------------------------------------------
@@ -119,6 +126,8 @@ nlevels(db$phylum)
 nlevels(db$class)
 nlevels(db$order)
 nlevels(db$family)
+nlevels(db$biogeography)
+table(db$biogeography)
 
 ## Variables X ##
 table(db$model_organism) #not really usable
@@ -185,7 +194,6 @@ db <- db %>%
 
 db$latitude <- scale(abs(db$centroid_lat))
 
-
 ############################################################################
 ############################################################################
 # Modelling research interest ---------------------------------------------
@@ -198,11 +206,13 @@ dbWOS2 <- db %>% dplyr::select(WOS = Total_wos,
                                class,
                                order,
                                family,
+                               biogeography,
                                latitude,
                                scaled_size,
                                colorful,
                                color_blu,
                                color_red,
+                               mimetism,
                                scaled_range_size,
                                domain_rec,
                                IUCN_rec,
@@ -212,23 +222,25 @@ dbWOS2 <- db %>% dplyr::select(WOS = Total_wos,
                                harmful_to_human,
                                scaled_log_distance_human) 
 
+
 # Missing data
 Amelia::missmap(dbWOS2)
 dbWOS <- na.omit(dbWOS2)
 
+# plot(dbWOS$WOS)
+# #identify(dbWOS$WOS)
+# dbWOS <- dbWOS[dbWOS$WOS < 3900,]
+
 # Setting formula ---------------------------------------------------------
 
 # random structure
-nlevels(dbWOS$phylum)
-nlevels(dbWOS$class)
-nlevels(dbWOS$order)
-nlevels(dbWOS$family)
-
 random <- "(1 | phylum) + (1 | class) + (1 | order) + (1 | family)"
+
+random <- "(1 | phylum) + (1 | class) + (1 | order) + (1 | family) + (1 | biogeography)"
 
 #formula
 model.formula.WOS <- as.formula(paste0("WOS ~",
-                                   paste(colnames(dbWOS)[7:ncol(dbWOS)], collapse = " + "),
+                                   paste(colnames(dbWOS)[8:ncol(dbWOS)], collapse = " + "),
                                    "+",
                                    random))
 
@@ -258,6 +270,8 @@ performance::check_collinearity(M1_nbinom)
 # R^2
 (M1.R2 <- my.r2(M1_nbinom))
 performance::r2(M1_nbinom)
+
+summary(M1_nbinom)
 
 ############################################################################
 ############################################################################
