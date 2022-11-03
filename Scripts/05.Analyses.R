@@ -1157,7 +1157,6 @@ dev.off()
     theme_classic() +
     custom_theme + theme(axis.text.y = element_text(size = 12)) + coord_flip())
 
-
 pdf(file = "Figures/Figure_4.pdf", width = 10, height = 7)
 ggpubr::ggarrange(plot4a,
                   plot4b,
@@ -1258,58 +1257,59 @@ ggpubr::ggarrange(map.total, map.animal, map.plantae, map.fungi,
                   ncol = 2, nrow = 2) 
 dev.off()
 
+
+
+
 #residuals
 
 dbRES <- db %>% dplyr::select(WOS = Total_wos,
                               WIKI = total_wiki_pgviews,
-                               kingdom,
-                               phylum,
-                               class,
-                               order,
-                               family,
-                               biogeography,
-                               scaled_size,
-                               colorful,
-                               color_blu,
-                               color_red,
-                               scaled_range_size,
-                               domain_rec,
-                               IUCN_rec,
-                               scaled_uniqueness_family,
-                               common_name,
-                               human_use,
-                               harmful_to_human,
-                               scaled_log_distance_human) 
+                              kingdom,
+                              phylum) 
 
 dbRES <- na.omit(dbRES)
 
-M3.gam <- gam::gam(log(WOS+1) ~ log(WIKI+1), data = dbRES)
+M3.gam <- gam::gam(log(WIKI+1) ~ log(WOS+1), data = dbRES)
 
 dbRES <- data.frame(res = residuals(M3.gam), dbRES) %>% dplyr::select(-c(WOS,WIKI))
 
-# random structure
-random <- "(1 | phylum) + (1 | class) + (1 | order) + (1 | biogeography)"
+# # random structure
+# random <- "(1 | phylum) + (1 | class) + (1 | order) + (1 | biogeography)"
+# 
+# #formula
+# model.formula.RES <- as.formula(paste0("res ~ phylum +", random))
+# 
+# # Fit the model -----------------------------------------------------------
+# 
+# #dbRES$phylum <- relevel(dbRES$phylum, "Chordata") #setting baseline
+# 
+# # First model
+# M0.Res <- glmmTMB::glmmTMB(model.formula.RES, family = gaussian, 
+#                        data = dbRES)
+# 
+# performance::check_model(M0.Res)
+# summary(M0.Res)
 
-#formula
-model.formula.RES <- as.formula(paste0("res ~",
-                                       paste(colnames(dbRES)[8:ncol(dbRES)], collapse = " + "),
-                                       "+",
-                                       random))
-
-# Fit the model -----------------------------------------------------------
-
-# First model
-M1 <- glmmTMB::glmmTMB(model.formula.RES,
-                       family = gaussian, 
-                       data = dbRES)
+# sjPlot::plot_model(M0.Res, sort.est = FALSE, se = TRUE,
+#                    vline.color ="grey70",
+#                    show.values = TRUE, value.offset = .3) + theme_bw()
 
 
-performance::check_collinearity(M1)
-performance::check_model(M1)
-summary(M1)
+dbRES %>% 
+    ggplot(aes(x = res, y = phylum, fill = kingdom, color = kingdom)) +
+    geom_point(position = position_jitter(width = 0.15), size = 1, alpha = 0.3) +
+    geom_boxplot(width = .8, outlier.shape = NA, alpha = 0.2, col = "grey20") +
+    #geom_density(position = position_jitter(width = 0.35)) +
+    labs(x = "Residuals", y = NULL) +
+    xlim(-5,5)+
+    annotate("segment", x = -3, xend = -4, y = 24, yend = 24,
+                    arrow = arrow(ends = "last", angle = 45, length = unit(.2,"cm")))+
+    geom_vline(lty = 1, size = 1, col = "blue", xintercept = 0) +
+    scale_color_manual(values = custom_color)+
+    scale_fill_manual(values = custom_color)+
+    theme_classic() +
+    custom_theme + theme(axis.text.y = element_text(size = 12))
 
-sjPlot::plot_model(M1, sort.est = FALSE, se = TRUE,
-                   vline.color ="grey70",
-                   show.values = TRUE, value.offset = .3) + theme_bw()
 
+    
 
