@@ -1302,8 +1302,8 @@ dbRES %>%
     #geom_density(position = position_jitter(width = 0.35)) +
     labs(x = "Residuals", y = NULL) +
     xlim(-5,5)+
-    annotate("segment", x = -3, xend = -4, y = 24, yend = 24,
-                    arrow = arrow(ends = "last", angle = 45, length = unit(.2,"cm")))+
+    # annotate("segment", x = -3, xend = -4, y = 24, yend = 24,
+    #                 arrow = arrow(ends = "last", angle = 45, length = unit(.2,"cm")))+
     geom_vline(lty = 1, size = 1, col = "blue", xintercept = 0) +
     scale_color_manual(values = custom_color)+
     scale_fill_manual(values = custom_color)+
@@ -1311,5 +1311,93 @@ dbRES %>%
     custom_theme + theme(axis.text.y = element_text(size = 12))
 
 
-    
+###########################
 
+dbRES <- db %>% dplyr::select(WOS = Total_wos,
+                              WIKI = total_wiki_pgviews,
+                              kingdom,
+                              phylum,
+                              class,
+                              order,
+                              family,
+                              biogeography,
+                              scaled_size,
+                              colorful,
+                              color_blu,
+                              color_red,
+                              scaled_range_size,
+                              domain_rec,
+                              IUCN_rec,
+                              scaled_uniqueness_family,
+                              common_name,
+                              human_use,
+                              harmful_to_human,
+                              scaled_log_distance_human) 
+
+dbRES <- na.omit(dbRES)
+
+M3.gam <- gam::gam(log(WIKI+1) ~ log(WOS+1), data = dbRES)
+
+dbRES <- data.frame(res = residuals(M3.gam), dbRES) %>% dplyr::select(-c(WOS,WIKI))
+
+# random structure
+random <- "(1 | phylum) + (1 | class) + (1 | order) + (1 | biogeography)"
+#
+# #formula
+model.formula.RES <- as.formula(paste0("res ~",
+                                       paste(colnames(dbRES)[8:ncol(dbRES)], collapse = " + "),
+                                       "+",
+                                       random))
+#
+# # Fit the model -----------------------------------------------------------
+#
+# # First model
+M0.Res <- glmmTMB::glmmTMB(model.formula.RES, family = gaussian,
+                       data = dbRES)
+#
+performance::check_model(M0.Res)
+summary(M0.Res)
+
+sjPlot::plot_model(M0.Res, sort.est = FALSE, se = TRUE,
+                   vline.color ="grey70",
+                   show.values = TRUE, value.offset = .3) + theme_bw()
+
+dev.off()
+plot(y=dbRES$res,x=dbRES$scaled_range_size)
+
+
+# cor_plot <- ggplot() + 
+#   xlab("N° papers in the Web of Science [logarithm]")+
+#   ylab("N° views in Wikipedia [logarithm]")+
+#   geom_abline(intercept = 0, slope = 1, lty = 3, size = 0.5, col = "grey50")+
+#   geom_point(data = db, aes(x = log(Total_wos+1), y = log(total_wiki_pgviews+1), color = kingdom),
+#              alpha = 0.4, size = 2)+
+#   geom_smooth(data = db, aes(x = log(Total_wos+1), y = log(total_wiki_pgviews+1)),
+#               method = "gam", se = T, fill = "grey30", col = "grey20", size = 0.7, alpha=0.4)+
+#   
+#   # geom_text(data = centroid,
+#   #           aes(x = mean_WOS, y = mean_WIKI,
+#   #               label = ifelse(mean_WOS > 0, as.character(phylum),'')),
+#   #           hjust = 1, vjust = -0.8, fontface="italic", size = 3)+
+#   # 
+#   # geom_point(data = centroid, 
+#   #            aes(x = mean_WOS, y = mean_WIKI),
+#   #            alpha = 1, size = 3, color = "black", shape = 2)+
+#   # 
+#   scale_x_continuous(  
+#     labels=c("0", "3", "6","9"),
+#     breaks=c(0,3,6,9))+
+#   
+#   scale_y_continuous(  
+#     labels=c("0", "5", "10","15","20"),
+#     breaks=c(0,5,10,15,20))+
+#   
+#   
+#   scale_color_manual("",values = custom_color)+
+#   theme_classic() + theme(legend.position = "none",
+#                           axis.text=element_text(size=10, angle=0,hjust = 0.5,colour ="grey30"),
+#                           axis.ticks.y = element_line(color = "grey20",size = 0.7),
+#                           axis.line.y = element_line(color = "grey20",size = 0.7, linetype = "solid"),
+#                           axis.ticks.x = element_line(color = "grey20",size = 0.7),
+#                           axis.line.x = element_line(color = "grey20",size = 0.7, linetype = "solid"))
+# 
