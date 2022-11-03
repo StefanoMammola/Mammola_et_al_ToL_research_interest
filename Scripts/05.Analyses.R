@@ -979,6 +979,14 @@ color.axis.sub <- c(rep(color_models[3],4),
                             axis.text.y = element_text(colour = rev(color.axis.sub)))
 )
 
+############################################################################
+############################################################################
+# Modelling residuals ------------------------------------------------------
+############################################################################
+############################################################################
+
+
+
 ####################################################################################
 ####################################################################################
 ####################################################################################
@@ -1259,57 +1267,75 @@ dev.off()
 
 
 
-
-#residuals
+################################
+# residuals
+#################################
 
 dbRES <- db %>% dplyr::select(WOS = Total_wos,
                               WIKI = total_wiki_pgviews,
                               kingdom,
-                              phylum) 
-
-dbRES <- na.omit(dbRES)
+                              phylum) %>% na.omit()
 
 M3.gam <- gam::gam(log(WIKI+1) ~ log(WOS+1), data = dbRES)
-
 dbRES <- data.frame(res = residuals(M3.gam), dbRES) %>% dplyr::select(-c(WOS,WIKI))
 
-# # random structure
-# random <- "(1 | phylum) + (1 | class) + (1 | order) + (1 | biogeography)"
-# 
-# #formula
-# model.formula.RES <- as.formula(paste0("res ~ phylum +", random))
-# 
-# # Fit the model -----------------------------------------------------------
-# 
-# #dbRES$phylum <- relevel(dbRES$phylum, "Chordata") #setting baseline
-# 
-# # First model
-# M0.Res <- glmmTMB::glmmTMB(model.formula.RES, family = gaussian, 
-#                        data = dbRES)
-# 
-# performance::check_model(M0.Res)
-# summary(M0.Res)
 
-# sjPlot::plot_model(M0.Res, sort.est = FALSE, se = TRUE,
-#                    vline.color ="grey70",
-#                    show.values = TRUE, value.offset = .3) + theme_bw()
+write.table(dbRES,"dbRES.csv")
 
+levels(dbRES$phylum) <- c(levels(dbRES$phylum),c('', " ")) # add blank level
+
+
+
+dbRES %>%
+  group_by(kingdom) %>%
+  mutate(median_res = median(res, na.rm=T)) %>%
+           ungroup() %>%
+           arrange(kingdom, median_res, phylum) %>%
+           #mutate(phylum = factor(phylum, levels=c(unique(.$phylum),""))) %>%
+           ggplot(aes(x = res, y = phylum, fill = kingdom, color = kingdom))+
+           geom_point(position = position_jitter(width = 0.15), size = 1, alpha = 0.3) +
+           geom_boxplot(width = .8, outlier.shape = NA, alpha = 0.2, col = "grey20")
+           
 
 dbRES %>% 
-    ggplot(aes(x = res, y = phylum, fill = kingdom, color = kingdom)) +
+    ggplot(aes(x = res, y = fct_reorder(phylum, res, .fun = median), fill = kingdom, color = kingdom)) +
     geom_point(position = position_jitter(width = 0.15), size = 1, alpha = 0.3) +
     geom_boxplot(width = .8, outlier.shape = NA, alpha = 0.2, col = "grey20") +
     #geom_density(position = position_jitter(width = 0.35)) +
     labs(x = "Residuals", y = NULL) +
     xlim(-5,5)+
-    # annotate("segment", x = -3, xend = -4, y = 24, yend = 24,
-    #                 arrow = arrow(ends = "last", angle = 45, length = unit(.2,"cm")))+
-    geom_vline(lty = 1, size = 1, col = "blue", xintercept = 0) +
+  
+  annotate("segment", x = 0.5, xend = 3.5, y = 30.5, yend = 30.5,
+           color = "grey30",
+           arrow = arrow(ends = "last", 
+                         angle = 15, 
+                         length = unit(.2,"cm")))+
+  
+  annotate("text", x = 0.5, y = 31, hjust = 0, vjust = 0.5,
+           size = 3,
+           color = "grey30",
+           label = "Popular interest")+
+  
+ annotate("segment", x = -0.5, xend = -3.5, y = 30.5, yend = 30.5,
+             color = "grey30",
+                    arrow = arrow(ends = "last", 
+                                  angle = 15, 
+                                  length = unit(.2,"cm")))+
+  
+  annotate("text", x = -2.8, y = 31, hjust =0, vjust = 0.5,
+           size = 3,
+           color = "grey30",
+           label = "Scientific interest")+
+  
+    geom_vline(lty = 3, size = 0.5, col = "black", xintercept = 0) +
+  
     scale_color_manual(values = custom_color)+
     scale_fill_manual(values = custom_color)+
+    scale_y_discrete(drop=FALSE)+
     theme_classic() +
-    custom_theme + theme(axis.text.y = element_text(size = 12))
-
+    custom_theme + theme(legend.position = "none",
+                         axis.ticks.y = element_blank(),
+                         axis.text.y = element_text(size = 12))
 
 ###########################
 
