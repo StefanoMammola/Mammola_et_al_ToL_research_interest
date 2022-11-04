@@ -17,6 +17,7 @@
 
 library("Amelia")
 library("dplyr")
+library("ggdist")
 library("ggforce")
 library("ggimage")
 library("ggpubr")
@@ -195,7 +196,9 @@ db <- db %>%
                 scaled_range_size = scale(log_range_size, center = TRUE, scale = TRUE),
                 scaled_size = scale(log_size_avg, center = TRUE, scale = TRUE))
 
-#db$latitude <- scale(abs(db$centroid_lat))
+#Log of wos and wiki
+db$log_wos  <- log(db$Total_wos+1)
+db$log_wiki <- log(db$total_wiki_pgviews+1)
 
 ############################################################################
 ############################################################################
@@ -1026,8 +1029,6 @@ blankPlot <- db %>% ggplot(aes(x = log(Total_wos+1),
 centroid <- db %>% dplyr::group_by(phylum) %>% summarize(mean_WOS = mean( log(Total_wos+1), na.rm = TRUE),
                                               mean_WIKI = mean( log(total_wiki_pgviews+1), na.rm = TRUE))
 
-#Can you include a dashed int=0,slope=1 line in the scatterplot between Wikipedia and WOS interest? (interesting result when looking at the colour of the points, meets the expectations).
-
 M3.gam <- gam::gam(log(Total_wos+1) ~ log(total_wiki_pgviews+1), data = db)
 
 cor_plot <- ggplot() + 
@@ -1141,12 +1142,17 @@ ggpubr::ggarrange(M.WOS.sub.forest_plot,
                   ncol=1, nrow=2) 
 dev.off()
 
-# Figure 4 ----------------------------------------------------------------
-(plot4a <- db %>% 
-   drop_na(kingdom, phylum, Total_wos) %>% 
-   ggplot(aes(y = log(Total_wos+1), x = phylum,
+# Figure S2 ----------------------------------------------------------------
+
+(plotS2a <- db %>% group_by(phylum) %>%
+   mutate(median_wos = median(log_wos, na.rm=T),
+          n = n()) %>%
+   ungroup() %>%
+   arrange(desc(kingdom),median_wos,phylum) %>% 
+   mutate(phylum = factor(phylum, levels = unique(.$phylum))) %>% 
+   ggplot(aes(y = log_wos, x = phylum,
               fill = kingdom, color = kingdom)) +
-   geom_point(position = position_jitter(width = 0.35), size = 2, alpha = 0.3) +
+   geom_point(position = position_jitter(width = 0.35), size = 1, alpha = 0.3) +
    geom_boxplot(width = .8, outlier.shape = NA, alpha = 0.2, col = "grey20") +
    labs(y = "N° papers in the Web of Science [logarithm]", x = NULL) +
     scale_color_manual(values = custom_color)+
@@ -1154,20 +1160,24 @@ dev.off()
     theme_classic() +
     custom_theme + theme(legend.position = "none", axis.text.y = element_text(size = 12)) + coord_flip())
 
-(plot4b <- db %>% 
-    drop_na(kingdom, phylum, Total_wos) %>% 
-    ggplot(aes(y = log(total_wiki_pgviews+1), x = phylum, fill = kingdom, fill = kingdom, color = kingdom)) +
-    geom_point(position = position_jitter(width = 0.35), size = 2, alpha = 0.3) +
+(plotS2b <- db %>% group_by(phylum) %>%
+    mutate(median_wiki = median(log_wiki, na.rm=T),
+           n = n()) %>%
+    ungroup() %>%
+    arrange(desc(kingdom), median_wiki ,phylum) %>% 
+    mutate(phylum = factor(phylum, levels = unique(.$phylum))) %>% 
+    ggplot(aes(y = log_wiki, x = phylum, fill = kingdom, color = kingdom)) +
+    geom_point(position = position_jitter(width = 0.35), size = 1, alpha = 0.3) +
     geom_boxplot(width = .8, outlier.shape = NA, alpha = 0.2, col = "grey20") +
     labs(y = "N° views in Wikipedia [logarithm]", x = NULL) +
-    scale_color_manual(values = custom_color)+
-    scale_fill_manual(values = custom_color)+
+    scale_color_manual("",values = custom_color)+
+    scale_fill_manual("",values = custom_color)+
     theme_classic() +
-    custom_theme + theme(axis.text.y = element_text(size = 12)) + coord_flip())
+    theme(axis.text.y = element_text(size = 12)) + coord_flip())
 
-pdf(file = "Figures/Figure_4.pdf", width = 10, height = 7)
-ggpubr::ggarrange(plot4a,
-                  plot4b,
+pdf(file = "Figures/Figure_S2.pdf", width = 10, height = 7)
+ggpubr::ggarrange(plotS2a,
+                  plotS2b,
                   common.legend = FALSE,
                   hjust = -5,
                   align = "v",
@@ -1175,19 +1185,6 @@ ggpubr::ggarrange(plot4a,
                   ncol=2, nrow=1) 
 dev.off()
 
-
-pdf(file = "Figures/Figure_1test.pdf", width = 10, height = 10)
-ggpubr::ggarrange(plot_cor,
-                  ggpubr::ggarrange(plot4a,
-                                    plot4b, 
-                                    ncol = 2, hjust = 0, vjust = 1,
-                                    labels = c("B", "C")),
-                  common.legend = FALSE,
-                  hjust = 0,
-                  align = "v",
-                  labels = c("A", ""),
-                  ncol=1, nrow=2) 
-dev.off()
 
 # Figure map --------------------------------------------------------------
 
@@ -1280,62 +1277,164 @@ M3.gam <- gam::gam(log(WIKI+1) ~ log(WOS+1), data = dbRES)
 dbRES <- data.frame(res = residuals(M3.gam), dbRES) %>% dplyr::select(-c(WOS,WIKI))
 
 
-write.table(dbRES,"dbRES.csv")
-
-levels(dbRES$phylum) <- c(levels(dbRES$phylum),c('', " ")) # add blank level
-
-
+#library("ggsvg")
 
 dbRES %>%
-  group_by(kingdom) %>%
-  mutate(median_res = median(res, na.rm=T)) %>%
-           ungroup() %>%
-           arrange(kingdom, median_res, phylum) %>%
-           #mutate(phylum = factor(phylum, levels=c(unique(.$phylum),""))) %>%
-           ggplot(aes(x = res, y = phylum, fill = kingdom, color = kingdom))+
-           geom_point(position = position_jitter(width = 0.15), size = 1, alpha = 0.3) +
-           geom_boxplot(width = .8, outlier.shape = NA, alpha = 0.2, col = "grey20")
-           
-
-dbRES %>% 
-    ggplot(aes(x = res, y = fct_reorder(phylum, res, .fun = median), fill = kingdom, color = kingdom)) +
-    geom_point(position = position_jitter(width = 0.15), size = 1, alpha = 0.3) +
-    geom_boxplot(width = .8, outlier.shape = NA, alpha = 0.2, col = "grey20") +
-    #geom_density(position = position_jitter(width = 0.35)) +
-    labs(x = "Residuals", y = NULL) +
-    xlim(-5,5)+
-  
-  annotate("segment", x = 0.5, xend = 3.5, y = 30.5, yend = 30.5,
+  group_by(phylum) %>%
+  mutate(median_res = median(res, na.rm=T),
+         n = n()) %>%
+  ungroup() %>%
+  arrange(desc(kingdom),median_res,phylum) %>% 
+  mutate(phylum = factor(phylum, levels = unique(.$phylum))) %>% 
+  # mutate(image = case_when(phylum == "Acanthocephala" ~ "https://images.phylopic.org/images/4f117460-d00a-49e4-865f-52bcc7d5887b/vector.svg",
+  #                          phylum == "Annelida" ~ "https://images.phylopic.org/images/079b4cee-ba72-4105-b59c-59c5c9591549/vector.svg",
+  #                          phylum == "Arthropoda" ~ "https://images.phylopic.org/images/f9b57bb5-7675-4c53-936f-924e8f5a75f3/vector.svg",
+  #                          phylum == "Chordata" ~ "https://images.phylopic.org/images/2ca942d6-57cd-4281-89c2-42350491984f/vector.svg",
+  #                          phylum == "Mollusca" ~  "https://images.phylopic.org/images/443c7494-aa78-4a21-b2b4-cfa3639e1346/vector.svg",
+  #                          phylum == "Platyhelminthes" ~ "https://images.phylopic.org/images/b81d728e-0e8c-4faf-8f40-edf999143f10/vector.svg",
+  #                          phylum == "Porifera" ~ "https://images.phylopic.org/images/3449d9ef-2900-4309-bf22-5262c909344b/vector.svg",
+  #                          phylum == "Rotifera" ~          "https://images.phylopic.org/images/3042a73d-353d-4191-811f-9b12f57c958c/vector.svg",
+  #                          phylum == "Tardigrada" ~       "https://images.phylopic.org/images/0957b8c0-a052-4f7d-a1ac-95f2179c6582/vector.svg",
+  #                          phylum == "Rhodophyta" ~       "https://images.phylopic.org/images/e9df48fe-68ea-419e-b9df-441e0b208335/vector.svg",
+  #                          phylum ==  "Tracheophyta" ~    "https://images.phylopic.org/images/585f5a9d-b96d-4fdc-aec7-01b9540e057f/vector.svg",
+  #                          phylum == "Nematoda" ~         "https://images.phylopic.org/images/3c60fbfb-5722-4248-94f0-23f841030294/vector.svg" ,
+  #                          phylum == "Bryophyta" ~        "https://images.phylopic.org/images/c9433947-a86d-453e-817a-7aba27fb453f/vector.svg" , 
+  #                          phylum == "Brachiopoda" ~      "https://images.phylopic.org/images/c0daf6f8-876d-4b61-98ad-fc8cde084841/vector.svg",
+  #                          phylum == "Bryozoa" ~          "https://images.phylopic.org/images/191ad6ce-78f2-444d-b4ad-9c4162b1803f/vector.svg" ,
+  #                          phylum == "Chaetognatha" ~     "https://images.phylopic.org/images/345d2e9d-c443-4579-8f5b-c9b15ab55c84/vector.svg",
+  #                          phylum == "Cnidaria" ~         "https://images.phylopic.org/images/26c0169f-b4a2-4871-8b30-e00db6e5958d/vector.svg" ,
+  #                          phylum == "Ctenophora" ~       "https://images.phylopic.org/images/2fa866ea-fa23-4b22-9382-66139a9c2cf1/vector.svg" ,
+  #                          phylum == "Cycliophora" ~      "https://images.phylopic.org/images/d08250be-c00c-48da-a76f-77eee31b09dc/vector.svg",
+  #                          phylum == "Echinodermata" ~    "https://images.phylopic.org/images/77fa45d8-a9e5-4067-b2df-ffe4c7f0cab2/vector.svg" ,
+  #                          phylum == "Hemichordata" ~     "https://images.phylopic.org/images/369c9a71-fea9-4b5c-8718-07735eaba5fc/vector.svg",
+  #                          phylum == "Kinorhyncha" ~      "https://images.phylopic.org/images/bc37a697-84bf-4e22-b919-de09657b4e93/vector.svg",
+  #                          phylum == "Loricifera" ~       "https://images.phylopic.org/images/03219505-5777-42e6-9660-9ddb80746144/vector.svg",
+  #                          phylum == "Nematomorpha" ~     "https://images.phylopic.org/images/23c6cb9b-855e-4dd2-8f24-d8882a24db30/vector.svg",
+  #                          phylum == "Nemertea" ~         "https://images.phylopic.org/images/1ae2caed-ef2a-4151-a023-17b8c601d671/vector.svg",
+  #                          phylum == "Priapulida" ~       "https://images.phylopic.org/images/4c501503-6407-4534-8cee-0d33aa2e6fbd/vector.svg" ,
+  #                          phylum == "Basidiomycota" ~    "https://images.phylopic.org/images/0ec7e6e6-e115-450a-b346-c40685ed3b1a/vector.svg",
+  #                          phylum == "Anthocerotophyta" ~ "https://images.phylopic.org/images/23c6cb9b-855e-4dd2-8f24-d8882a24db30/vector.svg",
+  #                          phylum == "Marchantiophyta" ~  "https://images.phylopic.org/images/4054a966-b5e1-425d-924e-352593ff9a1d/vector.svg")
+  # ) %>% 
+  # mutate(pic.x.pos = 9.5) %>% 
+  ggplot(aes(x = res, y = phylum, fill = kingdom, color = kingdom)) +
+  geom_point(data = ~.x %>%  filter(n == 1),
+               aes(x = median_res, fill = kingdom), 
+               colour = "gray30", shape = 21, alpha = .7)+
+  stat_slab(
+    data = ~ .x %>% filter(n > 1),
+    aes(fill_ramp = stat(abs(x))),
+                     #, color_ramp = stat(-dnorm(x, 0, .5))),
+    color = "gray15",
+    size = .3,
+    alpha = .7,
+    expand = FALSE,
+    trim = TRUE,
+    height = 3
+  ) +
+  labs(x = "Residuals", y = NULL) +
+  xlim(-7,10)+
+  annotate("segment", x = 0.5, xend = 3.5, y = 30.3, yend = 30.3,
            color = "grey30",
            arrow = arrow(ends = "last", 
                          angle = 15, 
                          length = unit(.2,"cm")))+
   
   annotate("text", x = 0.5, y = 31, hjust = 0, vjust = 0.5,
-           size = 3,
-           color = "grey30",
+           size = 5,
+           color = "grey10",
            label = "Popular interest")+
   
- annotate("segment", x = -0.5, xend = -3.5, y = 30.5, yend = 30.5,
-             color = "grey30",
-                    arrow = arrow(ends = "last", 
-                                  angle = 15, 
-                                  length = unit(.2,"cm")))+
+  annotate("segment", x = -0.5, xend = -3.5, y = 30.3, yend = 30.3,
+           color = "grey10",
+           arrow = arrow(ends = "last", 
+                         angle = 15, 
+                         length = unit(.2,"cm")))+
   
-  annotate("text", x = -2.8, y = 31, hjust =0, vjust = 0.5,
-           size = 3,
-           color = "grey30",
+  annotate("text", x = -0.5, y = 31, hjust =1, vjust = 0.5,
+           size = 5,
+           color = "grey10",
            label = "Scientific interest")+
   
-    geom_vline(lty = 3, size = 0.5, col = "black", xintercept = 0) +
+  #Chordata
+  ggimage::geom_phylopic(data = data.frame(x = max(dbRES[dbRES$phylum == "Chordata",]$res)-0.5, 
+                                           y = "Chordata", 
+                                           kingdom = "Animalia",
+                                           image = "6682f694-1c10-4386-a6e5-361581400f15"),  
+                         aes(x = x, y = y, image = image), by = "height",
+                         size=.05, color = custom_color[1], alpha = 0.7) +
+  #Loricifera
+  ggimage::geom_phylopic(data = data.frame(x = max(dbRES[dbRES$phylum == "Loricifera",]$res)+0.5, 
+                                           y = "Loricifera", 
+                                           kingdom = "Animalia",
+                                           image = "03219505-5777-42e6-9660-9ddb80746144"),  
+                         aes(x = x, y = y, image = image), by = "height",
+                         size=.04, color = custom_color[1], alpha = 0.7) +
   
-    scale_color_manual(values = custom_color)+
-    scale_fill_manual(values = custom_color)+
-    scale_y_discrete(drop=FALSE)+
-    theme_classic() +
-    custom_theme + theme(legend.position = "none",
-                         axis.ticks.y = element_blank(),
-                         axis.text.y = element_text(size = 12))
+  #Ctenophora
+  ggimage::geom_phylopic(data = data.frame(x = min(dbRES[dbRES$phylum == "Ctenophora",]$res)-0.5, 
+                                           y = "Ctenophora", 
+                                           kingdom = "Animalia",
+                                           image = "2fa866ea-fa23-4b22-9382-66139a9c2cf1"),  
+                         aes(x = x, y = y, image = image), by = "height",
+                         size=.07, color = custom_color[1], alpha = 0.7) +
+  
+  #Priapulida
+  ggimage::geom_phylopic(data = data.frame(x = max(dbRES[dbRES$phylum == "Priapulida",]$res)+0.5, 
+                                           y = "Cycliophora", 
+                                           kingdom = "Animalia",
+                                           image = "4c501503-6407-4534-8cee-0d33aa2e6fbd"),  
+                         aes(x = x, y = y, image = image), by = "height",
+                         size=.05, color = custom_color[1], alpha = 0.7) +
+  
+  geom_vline(lty = 3, size = 0.5, col = "black", xintercept = 0) +
+  scale_color_manual(values = custom_color)+
+  scale_fill_manual(values = custom_color)+
+  scale_y_discrete(drop=FALSE, expand=c(0.05,.05))+
+  theme_classic() +
+  theme(legend.position = "none",
+        #axis.ticks.y = element_blank(),
+        axis.text.y = element_text(size = 12))
+
+# dbRES %>% 
+#     ggplot(aes(x = res, y = fct_reorder(phylum, res, .fun = median), fill = kingdom, color = kingdom)) +
+#     geom_point(position = position_jitter(width = 0.15), size = 1, alpha = 0.3) +
+#     geom_boxplot(width = .8, outlier.shape = NA, alpha = 0.2, col = "grey20") +
+#     #geom_density(position = position_jitter(width = 0.35)) +
+#     labs(x = "Residuals", y = NULL) +
+#     xlim(-5,5)+
+#   
+#   annotate("segment", x = 0.5, xend = 3.5, y = 30.5, yend = 30.5,
+#            color = "grey30",
+#            arrow = arrow(ends = "last", 
+#                          angle = 15, 
+#                          length = unit(.2,"cm")))+
+#   
+#   annotate("text", x = 0.5, y = 31, hjust = 0, vjust = 0.5,
+#            size = 3,
+#            color = "grey30",
+#            label = "Popular interest")+
+#   
+#  annotate("segment", x = -0.5, xend = -3.5, y = 30.5, yend = 30.5,
+#              color = "grey30",
+#                     arrow = arrow(ends = "last", 
+#                                   angle = 15, 
+#                                   length = unit(.2,"cm")))+
+#   
+#   annotate("text", x = -2.8, y = 31, hjust =0, vjust = 0.5,
+#            size = 3,
+#            color = "grey30",
+#            label = "Scientific interest")+
+#   
+#     geom_vline(lty = 3, size = 0.5, col = "black", xintercept = 0) +
+#   
+#     scale_color_manual(values = custom_color)+
+#     scale_fill_manual(values = custom_color)+
+#     scale_y_discrete(drop=FALSE)+
+#     theme_classic() +
+#     custom_theme + theme(legend.position = "none",
+#                          axis.ticks.y = element_blank(),
+#                          axis.text.y = element_text(size = 12))
 
 ###########################
 
