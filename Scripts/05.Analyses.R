@@ -73,6 +73,40 @@ db$color_blu        <- as.factor(db$color_blu)
 db$color_red        <- as.factor(db$color_red)
 db$biogeography     <- as.factor(db$biogeography)
 
+# Adding silouhettes for each phylum ---------------------------------------------
+
+db <- db %>% 
+mutate(image = case_when(phylum == "Acanthocephala" ~ "4f117460-d00a-49e4-865f-52bcc7d5887b",
+                         phylum == "Annelida" ~ "079b4cee-ba72-4105-b59c-59c5c9591549",
+                         phylum == "Arthropoda" ~ "f9b57bb5-7675-4c53-936f-924e8f5a75f3",
+                         phylum == "Chordata" ~ "2ca942d6-57cd-4281-89c2-42350491984f",
+                         phylum == "Mollusca" ~  "443c7494-aa78-4a21-b2b4-cfa3639e1346",
+                         phylum == "Platyhelminthes" ~ "b81d728e-0e8c-4faf-8f40-edf999143f10",
+                         phylum == "Porifera" ~ "3449d9ef-2900-4309-bf22-5262c909344b",
+                         phylum == "Rotifera" ~ "3042a73d-353d-4191-811f-9b12f57c958c",
+                         phylum == "Tardigrada" ~ "0957b8c0-a052-4f7d-a1ac-95f2179c6582",
+                         phylum == "Rhodophyta" ~ "e9df48fe-68ea-419e-b9df-441e0b208335",
+                         phylum ==  "Tracheophyta" ~ "585f5a9d-b96d-4fdc-aec7-01b9540e057f",
+                         phylum == "Nematoda" ~ "3c60fbfb-5722-4248-94f0-23f841030294" ,
+                         phylum == "Bryophyta" ~ "c9433947-a86d-453e-817a-7aba27fb453f" ,
+                         phylum == "Brachiopoda" ~ "c0daf6f8-876d-4b61-98ad-fc8cde084841",
+                         phylum == "Bryozoa" ~ "191ad6ce-78f2-444d-b4ad-9c4162b1803f" ,
+                         phylum == "Chaetognatha" ~ "345d2e9d-c443-4579-8f5b-c9b15ab55c84",
+                         phylum == "Cnidaria" ~ "26c0169f-b4a2-4871-8b30-e00db6e5958d" ,
+                         phylum == "Ctenophora" ~ "2fa866ea-fa23-4b22-9382-66139a9c2cf1" ,
+                         phylum == "Cycliophora" ~ "d08250be-c00c-48da-a76f-77eee31b09dc",
+                         phylum == "Echinodermata" ~ "77fa45d8-a9e5-4067-b2df-ffe4c7f0cab2" ,
+                         phylum == "Hemichordata" ~ "369c9a71-fea9-4b5c-8718-07735eaba5fc",
+                         phylum == "Kinorhyncha" ~ "bc37a697-84bf-4e22-b919-de09657b4e93",
+                         phylum == "Loricifera" ~ "03219505-5777-42e6-9660-9ddb80746144",
+                         phylum == "Nematomorpha" ~ "23c6cb9b-855e-4dd2-8f24-d8882a24db30",
+                         phylum == "Nemertea" ~  "1ae2caed-ef2a-4151-a023-17b8c601d671",
+                         phylum == "Priapulida" ~ "4c501503-6407-4534-8cee-0d33aa2e6fbd" ,
+                         phylum == "Basidiomycota" ~ "0ec7e6e6-e115-450a-b346-c40685ed3b1a",
+                         phylum == "Anthocerotophyta" ~ "23c6cb9b-855e-4dd2-8f24-d8882a24db30",
+                         phylum == "Marchantiophyta" ~  "4054a966-b5e1-425d-924e-352593ff9a1d")
+)
+
 ####################################################################################
 # Data exploration --------------------------------------------------------
 ####################################################################################
@@ -1143,44 +1177,47 @@ ggpubr::ggarrange(M.WOS.sub.forest_plot,
 dev.off()
 
 # Figure S2 ----------------------------------------------------------------
-
-(plotS2a <- db %>% group_by(phylum) %>%
+(plotS2a <- db %>% 
+   group_by(phylum) %>%
    mutate(median_wos = median(log_wos, na.rm=T),
           n = n()) %>%
    ungroup() %>%
-   arrange(desc(kingdom),median_wos,phylum) %>% 
-   mutate(phylum = factor(phylum, levels = unique(.$phylum))) %>% 
-   ggplot(aes(y = log_wos, x = phylum,
+   arrange(desc(kingdom),phylum) %>%
+   mutate(phylum = factor(phylum, levels = unique(.$phylum))) %>%
+   ggplot(aes(x = log_wos, y = phylum,
               fill = kingdom, color = kingdom)) +
    geom_point(position = position_jitter(width = 0.35), size = 1, alpha = 0.3) +
    geom_boxplot(width = .8, outlier.shape = NA, alpha = 0.2, col = "grey20") +
-   labs(y = "N° papers in the Web of Science [logarithm]", x = NULL) +
+   labs(x = "N° papers in the Web of Science [logarithm]", y = NULL) +
+   
+   # ggimage::geom_phylopic(aes(x = 1, y = phylum, image = image),
+   #                        size = .2, color = "grey20") +
     scale_color_manual(values = custom_color)+
     scale_fill_manual(values = custom_color)+
     theme_classic() +
-    custom_theme + theme(legend.position = "none", axis.text.y = element_text(size = 12)) + coord_flip())
+    theme(legend.position = "none", axis.text.y = element_text(size = 12)))
 
 (plotS2b <- db %>% group_by(phylum) %>%
     mutate(median_wiki = median(log_wiki, na.rm=T),
            n = n()) %>%
     ungroup() %>%
-    arrange(desc(kingdom), median_wiki ,phylum) %>% 
+    arrange(desc(kingdom) ,phylum) %>% 
     mutate(phylum = factor(phylum, levels = unique(.$phylum))) %>% 
-    ggplot(aes(y = log_wiki, x = phylum, fill = kingdom, color = kingdom)) +
+    ggplot(aes(x = log_wiki, y = phylum, fill = kingdom, color = kingdom)) +
     geom_point(position = position_jitter(width = 0.35), size = 1, alpha = 0.3) +
     geom_boxplot(width = .8, outlier.shape = NA, alpha = 0.2, col = "grey20") +
-    labs(y = "N° views in Wikipedia [logarithm]", x = NULL) +
+    labs(x = "N° views in Wikipedia [logarithm]", y = NULL) +
     scale_color_manual("",values = custom_color)+
     scale_fill_manual("",values = custom_color)+
     theme_classic() +
-    theme(axis.text.y = element_text(size = 12)) + coord_flip())
+    theme(axis.text.y = element_text(size = 12)))
 
 pdf(file = "Figures/Figure_S2.pdf", width = 10, height = 7)
 ggpubr::ggarrange(plotS2a,
                   plotS2b,
                   common.legend = FALSE,
-                  hjust = -5,
-                  align = "v",
+                  hjust = -0.5,
+                  align = "h",
                   labels = c("A", "B"),
                   ncol=2, nrow=1) 
 dev.off()
