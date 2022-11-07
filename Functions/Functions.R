@@ -13,13 +13,12 @@
 
 # Colors
 color_models <- c("violetred4","blue","grey30")
-
-custom_color <- c("grey50", #animalia
-                  "purple", #fungi
-                  "darkgreen") #plantae
+  
+custom_color <- c("grey50",    # animalia
+                  "purple",    # fungi
+                  "darkgreen") # plantae
 
 # Variable names
-
 var.names <-  c("Intercept",
                 "Color blue [yes]",
                 "Color red [yes]",
@@ -101,7 +100,6 @@ custom_theme <- theme(#text = element_text(family = "Arial"),
   plot.title = element_text(size = 12, vjust = 1, hjust = 0),
   legend.text = element_text(size = 9),          
   legend.title = element_blank(),                              
-  #legend.position = c(0.95, 0.15), 
   legend.key = element_blank(),
   legend.background = element_rect(color = "white", 
                                    fill = "transparent", 
@@ -113,8 +111,6 @@ custom_theme <- theme(#text = element_text(family = "Arial"),
 # axis.line.y = element_line(color = "grey20",size = 0.7, linetype = "solid"),
 # axis.ticks.x = element_line(color = "grey20",size = 0.7),
 # axis.line.x = element_line(color = "grey20",size = 0.7, linetype = "solid"))
-
-
 
 ## ------------------------------------------------------------------------
 # 'Custom functions'

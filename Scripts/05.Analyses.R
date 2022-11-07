@@ -61,7 +61,11 @@ length(na.omit(db$size_m))/nrow(db)
 length(na.omit(db$size_f))/nrow(db)
 length(na.omit(db$photo_google))/nrow(db)
 
-sum(db$photo_google,na.rm = T)/nrow(db)
+#% missing centroids
+length(na.omit(db[db$kingdom == "Animalia",]$centroid_lat))/nrow(db[db$kingdom == "Animalia",])
+length(na.omit(db[db$kingdom == "Plantae",]$centroid_lat))/nrow(db[db$kingdom == "Plantae",])
+length(na.omit(db[db$kingdom == "Fungi",]$centroid_lat))/nrow(db[db$kingdom == "Fungi",])
+length(na.omit(db$centroid_lat))/nrow(db)
 
 # Converting factors to factors
 db$model_organism   <- as.factor(db$model_organism)
