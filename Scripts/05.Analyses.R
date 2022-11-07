@@ -556,10 +556,8 @@ color.axis <- c(rep(color_models[3],4),
               size = 4, parse = TRUE) +
     
   theme_classic() + theme(legend.position = "none",
-                          axis.text = element_text(size = 12), 
-                          axis.title = element_text(size = 14),
-                          strip.text = element_text(size = 14),
-                          axis.text.y = element_text(colour = rev(color.axis)))
+                          axis.text.y = element_text(colour = rev(color.axis))) +
+    custom_theme
 )
 
 # Visualizing the effect ---------------------------------------------------
@@ -583,23 +581,42 @@ sign <- ifelse(table.plot.M0$p > 0.05, "", ifelse(table.plot.M0$p > 0.01,"", " *
     scale_fill_manual(values = color_models)+
     
     #R^2
-    geom_text(data = data.frame(x = 0.8, y = 2,
+    geom_text(data = data.frame(x = 1, y = 2,
                                 label = paste0("R^2 ==",round(as.numeric(M0.R2[2]),2))),
               aes(x = x, y = y, label = label),
               size = 4, parse = TRUE)+
-    geom_text(data = data.frame(x = 0.8, y = 1,
+    geom_text(data = data.frame(x = 1, y = 1,
                                 label = paste0("N ==",nrow(dbRES))),
               aes(x = x, y = y, label = label),
               size = 4, parse = TRUE) +
     
+    annotate("segment", x = 0.1, xend = 1, y = 16, yend = 16,
+             color = "grey30",
+             arrow = arrow(ends = "last", 
+                           angle = 15, 
+                           length = unit(.2,"cm")))+
     
-    theme_classic() + theme(legend.position = "none",
-                            axis.text = element_text(size = 12), 
-                            axis.title = element_text(size = 14),
-                            strip.text = element_text(size = 14),
+    annotate("text", x = 0.2, y = 16.5, hjust = 0, vjust = 0.5,
+             size = 3,
+             color = "grey30",
+             label = "Popular interest")+
+    
+    annotate("segment", x = -0.1, xend = -1, y = 16, yend = 16,
+             color = "grey30",
+             arrow = arrow(ends = "last", 
+                           angle = 15, 
+                           length = unit(.2,"cm")))+
+    
+    annotate("text", x = -0.2, y = 16.5, hjust =1, vjust = 0.5,
+             size = 3,
+             color = "grey30",
+             label = "Scientific interest")+
+    
+    scale_y_discrete(drop=FALSE, expand=c(0.05,1.2))+
+    
+    theme_classic() + custom_theme + theme(legend.position = "none",
                             axis.text.y = element_text(colour = rev(color.axis)))
 )
-
 
 #ALL IN
 
@@ -655,10 +672,7 @@ table.plot$Model <- factor(table.plot$Model, c("Web of Science",
               aes(x = x, y = y, label = label),
               size = 4, parse = TRUE) +
     
-    theme_classic() + theme(legend.position = "none",
-                            axis.text = element_text(size = 12), 
-                            axis.title = element_text(size = 14),
-                            strip.text = element_text(size = 14),
+    theme_classic() + custom_theme + theme(legend.position = "none",
                             axis.text.y = element_text(colour = rev(color.axis)))
 )
 
@@ -860,7 +874,7 @@ performance::check_model(M.WOS.arthropoda)
 performance::check_model(M.WOS.tracheo)    
 
 # R^2
-(R2.WOS.chordata  <- my.r2(M.WOS.chordata))
+(R2.WOS.chordata   <- my.r2(M.WOS.chordata))
 (R2.WOS.arthropoda <- my.r2(M.WOS.arthropoda))
 (R2.WOS.tracheo    <- my.r2(M.WOS.tracheo))
 
@@ -928,39 +942,7 @@ table.sub.WOS <- cbind(Model = c(rep("Chordata",nrow(table.chordata.WOS)),
 table.sub.WOS$Parameter <- as.factor(as.character(table.sub.WOS$Parameter))
 table.sub.WOS$Model     <- as.factor(as.character(table.sub.WOS$Model))
 
-var.names.sub <-  c("Intercept",
-                    "Color blue [yes]",
-                    "Color red [yes]",
-                    "Colorful [yes]",
-                    "Common name [yes]",
-                    "Domain [freshwater]",
-                    "Domain [marine]",
-                    "Domain [terrestrial]",
-                    "Harmful to humans [yes]",
-                    "Human use [yes]",
-                    "IUCN [endangered]",
-                    "IUCN [non-endangered]",
-                    "Range size",
-                    "Organism size",
-                    "Genus uniqueness (N° species)")
-
 levels(table.sub.WOS$Parameter) <- var.names.sub
-
-var.order.sub <- c("Intercept",
-                   "Organism size",
-                   "Colorful [yes]",
-                   "Color blue [yes]",
-                   "Color red [yes]",
-                   "Range size",
-                   "Genus uniqueness (N° species)",
-                   "Domain [freshwater]",
-                   "Domain [marine]",
-                   "Domain [terrestrial]",
-                   "IUCN [endangered]",
-                   "IUCN [non-endangered]",
-                   "Common name [yes]",
-                   "Human use [yes]",
-                   "Harmful to humans [yes]")
 
 table.sub.WOS$Parameter <- factor(table.sub.WOS$Parameter, rev(var.order.sub)) #Sort
 
@@ -973,22 +955,24 @@ var.type.sub <- c("Intercept",
 table.sub.WOS <- cbind(Type = rep(var.type.sub,3), table.sub.WOS)
 
 # Saving the table
-write.csv(table.M,"Tables/TableS2_subWOS.csv")
+write.csv(table.sub.WOS,"Tables/TableS2_subWOS.csv")
 
 # Plotting WOS ------------------------------------------------------------------
+table.sub.WOS <- table.sub.WOS[table.sub.WOS$Parameter != "Intercept",] ; table.sub.WOS <- droplevels(table.sub.WOS)
+sign.sub <- ifelse(table.sub.WOS$p > 0.05, "", ifelse(table.sub.WOS$p > 0.01,"", " *")) #Significance
 
 color.axis.sub <- c(rep(color_models[3],4),
                     rep(color_models[2],7),
                     rep(color_models[1],3))
 
 (M.WOS.sub.forest_plot <- 
-   table.sub.WOS[table.sub.WOS$Parameter != "Intercept",] %>%
+   table.sub.WOS %>%
    ggplot2::ggplot(aes(x = Beta, y = Parameter)) + 
    facet_wrap(. ~ Model, nrow = 1, ncol = 3) +  
    geom_vline(lty = 3, size = 0.5, col = "grey50", xintercept = 0) +
    geom_errorbar(aes(xmin = CI_low, xmax = CI_high, col = Type), width = 0)+
    geom_point(aes(col = Type, fill = Type), size = 2, pch = 21) +
-   #geom_text(aes(col = Type),label = paste0(round(table.sub.WOS$Beta, 3), sign, sep = "  "), vjust = - 1, size = 2.5) +
+   geom_text(aes(col = Type),label = paste0(round(table.sub.WOS$Beta, 3), sign.sub, sep = "  "), vjust = - 1, size = 2.5) +
    labs(title = "N° papers in the Web of Science",
         x = expression(paste("Estimated beta" %+-% "95% Confidence interval")),
         y = NULL) +
@@ -1029,16 +1013,15 @@ color.axis.sub <- c(rep(color_models[3],4),
                                          image = "29762b5d-82b9-4fd5-908e-986b5340cadc"),  
                            aes(x = x, y = y, image = image),
                            size=.2, color = "grey20") +
+    scale_y_discrete(drop=FALSE, expand=c(0.05,.05))+
   
-  
-   theme_classic() + theme(legend.position = "none",
-                           axis.title.x = element_blank(), 
-                           axis.title.y = element_text(size = 12),
-                           axis.text = element_text(size = 10),
-                           strip.text = element_text(size = 12),
-                           axis.text.y = element_text(colour = rev(color.axis.sub)))
+   theme_classic() + 
+   custom_theme + 
+   theme(legend.position = "none",
+         axis.text.y = element_text(colour = rev(color.axis.sub)),
+         axis.text.x = element_blank(),
+         axis.title.x = element_blank())
 )
-
 
 # Setting tables WIKI -------------------------------------------------------
 
@@ -1092,6 +1075,9 @@ write.csv(table.M,"Tables/TableS2_sub_wiki.csv")
 
 # Plotting wiki ------------------------------------------------------------------
 
+table.sub.wiki <- table.sub.wiki[table.sub.wiki$Parameter != "Intercept",] ; table.sub.wiki <- droplevels(table.sub.wiki)
+sign.sub <- ifelse(table.sub.wiki$p > 0.05, "", ifelse(table.sub.wiki$p > 0.01,"", " *")) #Significance
+
 color.axis.sub <- c(rep(color_models[3],4),
                     rep(color_models[2],7),
                     rep(color_models[1],3))
@@ -1103,7 +1089,7 @@ color.axis.sub <- c(rep(color_models[3],4),
     geom_vline(lty = 3, size = 0.5, col = "grey50", xintercept = 0) +
     geom_errorbar(aes(xmin = CI_low, xmax = CI_high, col = Type), width = 0)+
     geom_point(aes(col = Type, fill = Type), size = 2, pch = 21) +
-    #geom_text(aes(col = Type),label = paste0(round(table.sub.wiki$Beta, 3), sign, sep = "  "), vjust = - 1, size = 2.5) +
+    geom_text(aes(col = Type),label = paste0(round(table.sub.wiki$Beta, 3), sign.sub, sep = "  "), vjust = - 1, size = 2.5) +
     labs(title = "N° views in Wikipedia",
          x = expression(paste("Estimated beta" %+-% "95% Confidence interval")),
          y = NULL) +
@@ -1129,13 +1115,8 @@ color.axis.sub <- c(rep(color_models[3],4),
               aes(x = x, y = y, label = label),
               size = 3, parse = TRUE)+
     
-    
-    theme_classic() + theme(legend.position = "none",
-                            strip.background = element_blank(),
-                            strip.text.x = element_blank(),
-                            axis.text = element_text(size = 10), 
-                            axis.title = element_text(size = 12),
-                            strip.text = element_text(size = 12),
+    scale_y_discrete(drop=FALSE, expand=c(0.05,.05))+
+    theme_classic() + custom_theme + theme(legend.position = "none",
                             axis.text.y = element_text(colour = rev(color.axis.sub)))
 )
 
@@ -1192,13 +1173,9 @@ cor_plot <- ggplot() +
     breaks=c(0,5,10,15,20))+
   
   scale_color_manual("",values = custom_color)+
-  theme_classic() + theme(legend.position = "none",
-        axis.text=element_text(size=10, angle=0,hjust = 0.5,colour ="grey30"),
-        axis.ticks.y = element_line(color = "grey20",size = 0.7),
-        axis.line.y = element_line(color = "grey20",size = 0.7, linetype = "solid"),
-        axis.ticks.x = element_line(color = "grey20",size = 0.7),
-        axis.line.x = element_line(color = "grey20",size = 0.7, linetype = "solid"))
-
+  theme_classic() + theme(legend.position = "none") +
+  custom_theme
+                          
 xplot <- db %>% 
   select(log_wos, kingdom) %>%  na.omit() %>% 
   ggdensity("log_wos", fill = "kingdom", color = "grey30",
@@ -1238,19 +1215,19 @@ f1.panelB <- dbRES %>%
   ggplot(aes(x = res, y = phylum, fill = kingdom, color = kingdom)) +
   geom_point(data = ~.x %>%  filter(n == 1),
              aes(x = median_res, fill = kingdom), 
-             colour = "gray30", shape = 21, alpha = .7)+
+             colour = "gray30", shape = 21, alpha = .9)+
   stat_slab(
     data = ~ .x %>% filter(n > 1),
     aes(fill_ramp = stat(abs(x))),
     #, color_ramp = stat(-dnorm(x, 0, .5))),
     color = "gray15",
     size = .3,
-    alpha = .7,
+    alpha = .9,
     expand = FALSE,
     trim = TRUE,
     height = 3
   ) +
-  labs(x = "Residuals [fitted line in A]", y = NULL) +
+  labs(x = "Residuals from fitted line in A", y = NULL) +
   #xlim(-7,10)+
   annotate("segment", x = 0.5, xend = 3.5, y = 30.3, yend = 30.3,
            color = "grey30",
@@ -1273,7 +1250,6 @@ f1.panelB <- dbRES %>%
            size = 3,
            color = "grey30",
            label = "Scientific interest")+
-
   
 ggimage::geom_phylopic(data = data.frame(x = 9, y = 18, kingdom = "Animalia",
                                            image = "f3309b41-d0d9-4b50-9e1a-325a0693cf5e"),  
@@ -1295,8 +1271,8 @@ ggimage::geom_phylopic(data = data.frame(x = 9.5, y = 3, kingdom = "Plantae",
   scale_fill_manual(values = custom_color)+
   scale_y_discrete(drop=FALSE, expand=c(0.05,.05))+
   theme_classic() +
-  theme(legend.position = "none",
-        axis.text.y = element_text(size = 10))
+  custom_theme +
+  theme(legend.position = "none")
 
 # Merge
 pdf(file = "Figures/Figure_1.pdf", width = 12, height = 5)
@@ -1320,9 +1296,10 @@ ggpubr::ggarrange(M1.2.forest_plot,
 
 dev.off()
 
+
 # Figure 3 ----------------------------------------------------------------
 
-pdf(file = "Figures/Figure_3.pdf", width = 12, height = 7.5)
+pdf(file = "Figures/Figure_3.pdf", width = 12, height = 9)
 ggpubr::ggarrange(M.WOS.sub.forest_plot,
                   M.wiki.sub.forest_plot,
                   common.legend = FALSE,
@@ -1332,7 +1309,90 @@ ggpubr::ggarrange(M.WOS.sub.forest_plot,
                   ncol=1, nrow=2) 
 dev.off()
 
+# Figure S1 (Map) --------------------------------------------------------------
+
+# Load world map
+world <- ggplot2::map_data("world")
+
+points <- db %>% 
+  dplyr::select(centroid_long,centroid_lat) %>% 
+  na.omit() %>% 
+  sf::st_as_sf(coords=c("centroid_long", "centroid_lat"))
+
+r <- raster::raster(points, ncols = 30, nrows = 30)
+extent(r) <- c(-180,180,-90,90)
+
+# Count the number of points on each pixel
+map.total <- raster::rasterize(points, 
+                               r, 
+                               fun="count") %>% 
+  as.data.frame(xy = TRUE) %>%
+  ggplot2::ggplot() +
+  geom_raster(aes(x=x, y=y, fill = layer), alpha = .9) +
+  geom_map(data = world, map = world,
+           aes(long, lat, map_id = region),
+           color = "black", fill = "transparent", size = 0.1) +
+  scale_fill_gradient("", low="grey70", high="blue", na.value="white") +
+  ggthemes::theme_map() +
+  theme(legend.position = c(0,0.1),
+        legend.direction ="horizontal",
+        legend.key.height = unit(.5, 'cm'), #change legend key height
+        legend.key.width = unit(.5, 'cm'))
+
+map.animal <- ggplot() +
+  geom_map(data = world, map = world,
+           aes(long, lat, map_id = region),
+           color = "black", fill = "transparent", size = 0.1) +
+  geom_point(data = db[db$kingdom == "Animalia",],
+             aes(centroid_long, centroid_lat), alpha = 0.7, shape =21, color = "black", fill = custom_color[1], size = 1.8) +
+  #annotation_custom(grid::rasterGrob(animal_png), xmin = -140, xmax = -100, ymin = -10, ymax = -70)+
+  ggimage::geom_phylopic(data = data.frame(x = -120, y = -45, kingdom = "Animalia",
+                                           image = "f3309b41-d0d9-4b50-9e1a-325a0693cf5e"),  
+                         aes(x = x, y = y, image = image),
+                         size=.15, color = custom_color[1]) +
+  
+  ggthemes::theme_map() 
+
+map.plantae <- ggplot() +
+  geom_map(data = world, map = world,
+           aes(long, lat, map_id = region),
+           color = "black", fill = "transparent", size = 0.1) +
+  geom_point(data = db[db$kingdom == "Plantae",],
+             aes(centroid_long, centroid_lat), alpha = 0.7, shape =21, color = "black", fill = custom_color[3], size = 1.8) +
+  #annotation_custom(grid::rasterGrob(plant_png), xmin = -140, xmax = -100, ymin = -10, ymax = -70)+
+  ggimage::geom_phylopic(data = data.frame(x = -120, y = -45, kingdom = "Plantae",
+                                           image = "29762b5d-82b9-4fd5-908e-986b5340cadc"),  
+                         aes(x = x, y = y, image = image),
+                         size=.15, color = custom_color[3]) + 
+  
+  ggthemes::theme_map()
+
+map.fungi <- ggplot() +
+  geom_map(data = world, map = world,
+           aes(long, lat, map_id = region),
+           color = "black", fill = "transparent", size = 0.1) +
+  geom_point(data = db[db$kingdom == "Fungi",],
+             aes(centroid_long, centroid_lat), alpha = 0.7, shape =21, color = "black", fill = custom_color[2], size = 1.8) +
+  #annotation_custom(grid::rasterGrob(fungi_png), xmin = -140, xmax = -100, ymin = -10, ymax = -70)+
+  ggimage::geom_phylopic(data = data.frame(x = -120, y = -45, kingdom = "Fungi",
+                                           image = "8cff2d66-6549-44d2-8304-d2dfecf53d78"),  
+                         aes(x = x, y = y, image = image),
+                         size=.15, color = custom_color[2]) + 
+  
+  ggthemes::theme_map()
+
+
+pdf(file = "Figures/Figure_S1.pdf", width = 8, height = 5.5)
+ggpubr::ggarrange(map.total, map.animal, map.plantae, map.fungi,
+                  common.legend = FALSE,
+                  hjust = 0,
+                  align = "hv",
+                  labels = c("A", "B", "C", "D"),
+                  ncol = 2, nrow = 2) 
+dev.off()
+
 # Figure S2 ----------------------------------------------------------------
+
 (plotS2a <- db %>% 
    group_by(phylum) %>%
    mutate(median_wos = median(log_wos, na.rm=T),
@@ -1378,87 +1438,8 @@ ggpubr::ggarrange(plotS2a,
                   ncol=2, nrow=1) 
 dev.off()
 
-# Figure map --------------------------------------------------------------
+# Figure S3 ----------------------------------------------------------------
 
-# Load world map
-world <- ggplot2::map_data("world")
-
-points <- db %>% 
-  dplyr::select(centroid_long,centroid_lat) %>% 
-  na.omit() %>% 
-  sf::st_as_sf(coords=c("centroid_long", "centroid_lat"))
-
-r <- raster::raster(points, ncols = 30, nrows = 30)
-extent(r) <- c(-180,180,-90,90)
-
-# Count the number of points on each pixel
-map.total <- raster::rasterize(points, 
-                               r, 
-                               fun="count") %>% 
-                   as.data.frame(xy = TRUE) %>%
-                   ggplot2::ggplot() +
-  geom_raster(aes(x=x, y=y, fill = layer), alpha = .9) +
-  geom_map(data = world, map = world,
-             aes(long, lat, map_id = region),
-             color = "black", fill = "transparent", size = 0.1) +
-  scale_fill_gradient("", low="grey70", high="blue", na.value="white") +
-        ggthemes::theme_map() +
-    theme(legend.position = c(0,0.1),
-          legend.direction ="horizontal",
-          legend.key.height = unit(.5, 'cm'), #change legend key height
-          legend.key.width = unit(.5, 'cm'))
-
-map.animal <- ggplot() +
-  geom_map(data = world, map = world,
-           aes(long, lat, map_id = region),
-           color = "black", fill = "transparent", size = 0.1) +
-  geom_point(data = db[db$kingdom == "Animalia",],
-             aes(centroid_long, centroid_lat), alpha = 0.7, shape =21, color = "black", fill = custom_color[1], size = 1.8) +
-  #annotation_custom(grid::rasterGrob(animal_png), xmin = -140, xmax = -100, ymin = -10, ymax = -70)+
-  ggimage::geom_phylopic(data = data.frame(x = -120, y = -45, kingdom = "Animalia",
-                                           image = "f3309b41-d0d9-4b50-9e1a-325a0693cf5e"),  
-                         aes(x = x, y = y, image = image),
-                         size=.15, color = custom_color[1]) +
-  
-  ggthemes::theme_map() 
-
-map.plantae <- ggplot() +
-  geom_map(data = world, map = world,
-           aes(long, lat, map_id = region),
-           color = "black", fill = "transparent", size = 0.1) +
-  geom_point(data = db[db$kingdom == "Plantae",],
-             aes(centroid_long, centroid_lat), alpha = 0.7, shape =21, color = "black", fill = custom_color[3], size = 1.8) +
-  #annotation_custom(grid::rasterGrob(plant_png), xmin = -140, xmax = -100, ymin = -10, ymax = -70)+
-  ggimage::geom_phylopic(data = data.frame(x = -120, y = -45, kingdom = "Plantae",
-                                           image = "29762b5d-82b9-4fd5-908e-986b5340cadc"),  
-                         aes(x = x, y = y, image = image),
-                         size=.15, color = custom_color[3]) + 
-  
-  ggthemes::theme_map()
-
-map.fungi <- ggplot() +
-  geom_map(data = world, map = world,
-           aes(long, lat, map_id = region),
-           color = "black", fill = "transparent", size = 0.1) +
-  geom_point(data = db[db$kingdom == "Fungi",],
-             aes(centroid_long, centroid_lat), alpha = 0.7, shape =21, color = "black", fill = custom_color[2], size = 1.8) +
-  #annotation_custom(grid::rasterGrob(fungi_png), xmin = -140, xmax = -100, ymin = -10, ymax = -70)+
-  ggimage::geom_phylopic(data = data.frame(x = -120, y = -45, kingdom = "Fungi",
-                                           image = "8cff2d66-6549-44d2-8304-d2dfecf53d78"),  
-                         aes(x = x, y = y, image = image),
-                         size=.15, color = custom_color[2]) + 
-  
-  ggthemes::theme_map()
-
-
-pdf(file = "Figures/Figure_map.pdf", width = 8, height = 5.5)
-ggpubr::ggarrange(map.total, map.animal, map.plantae, map.fungi,
-                  common.legend = FALSE,
-                  hjust = 0,
-                  align = "hv",
-                  labels = c("A", "B", "C", "D"),
-                  ncol = 2, nrow = 2) 
+pdf(file = "Figures/Figure_S3.pdf", width = 6, height = 4.5)
+M0.forest_plot
 dev.off()
-
-
-

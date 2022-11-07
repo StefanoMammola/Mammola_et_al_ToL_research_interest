@@ -54,26 +54,67 @@ var.order <- c("Intercept",
                "Harmful to humans [yes]",
                "Phylogenetic distance to humans")
 
+var.names.sub <-  c("Intercept",
+                    "Color blue [yes]",
+                    "Color red [yes]",
+                    "Colorful [yes]",
+                    "Common name [yes]",
+                    "Domain [freshwater]",
+                    "Domain [marine]",
+                    "Domain [terrestrial]",
+                    "Harmful to humans [yes]",
+                    "Human use [yes]",
+                    "IUCN [endangered]",
+                    "IUCN [non-endangered]",
+                    "Range size",
+                    "Organism size",
+                    "Genus uniqueness (N° species)")
+
+var.order.sub <- c("Intercept",
+                   "Organism size",
+                   "Colorful [yes]",
+                   "Color blue [yes]",
+                   "Color red [yes]",
+                   "Range size",
+                   "Genus uniqueness (N° species)",
+                   "Domain [freshwater]",
+                   "Domain [marine]",
+                   "Domain [terrestrial]",
+                   "IUCN [endangered]",
+                   "IUCN [non-endangered]",
+                   "Common name [yes]",
+                   "Human use [yes]",
+                   "Harmful to humans [yes]")
+
 # Custom theme for ggplot2
 custom_theme <- theme(#text = element_text(family = "Arial"),
-  axis.text = element_text(size = 10), 
-  axis.title = element_text(size = 12),
-  axis.line.x = element_line(color="black"), 
-  axis.line.y = element_line(color="black"),
+  axis.text = element_text(size = 9), 
+  axis.title = element_text(size = 10),
+  axis.line.x = element_line(color="grey10"), 
+  axis.line.y = element_line(color="grey10"),
   panel.border = element_blank(),
   panel.grid.major.x = element_blank(),                                          
   panel.grid.minor.x = element_blank(),
   panel.grid.minor.y = element_blank(),
   panel.grid.major.y = element_blank(),  
-  plot.margin = unit(c(1, 1, 1, 1), units = , "cm"),
-  plot.title = element_text(size = 18, vjust = 1, hjust = 0),
-  legend.text = element_text(size = 12),          
+  plot.margin = unit(c(.8, .8, .8, .8), units = , "cm"),
+  plot.title = element_text(size = 12, vjust = 1, hjust = 0),
+  legend.text = element_text(size = 9),          
   legend.title = element_blank(),                              
-  legend.position = c(0.95, 0.15), 
+  #legend.position = c(0.95, 0.15), 
   legend.key = element_blank(),
-  legend.background = element_rect(color = "black", 
+  legend.background = element_rect(color = "white", 
                                    fill = "transparent", 
-                                   size = 2, linetype = "blank"))
+                                   size = 2, linetype = "white"))
+
+
+# axis.text=element_text(size=10, angle=0,hjust = 0.5,colour ="grey30"),
+# axis.ticks.y = element_line(color = "grey20",size = 0.7),
+# axis.line.y = element_line(color = "grey20",size = 0.7, linetype = "solid"),
+# axis.ticks.x = element_line(color = "grey20",size = 0.7),
+# axis.line.x = element_line(color = "grey20",size = 0.7, linetype = "solid"))
+
+
 
 ## ------------------------------------------------------------------------
 # 'Custom functions'
