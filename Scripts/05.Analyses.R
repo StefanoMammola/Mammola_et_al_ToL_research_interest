@@ -529,7 +529,8 @@ color.axis <- c(rep(color_models[3],4),
     geom_vline(lty = 3, size = 0.5, col = "grey50", xintercept = 0) +
     geom_errorbar(aes(xmin = CI_low, xmax = CI_high, col = Type), width = 0)+
     geom_point(aes(col = Type, fill = Type), size = 2, pch = 21) +
-    geom_text(aes(col = Type),label = paste0(round(table.plot.M1.2$Beta, 3), sign, sep = "  "), vjust = - 1, size = 2.5) +
+    geom_text(aes(col = Type),label = paste0(round(table.plot.M1.2$Beta, 3), sign, sep = "  "), 
+              vjust = - 1, size = 3) +
     labs(x = expression(paste("Estimated beta" %+-% "95% Confidence interval")),
        y = NULL) +
     
@@ -555,9 +556,15 @@ color.axis <- c(rep(color_models[3],4),
               aes(x = x, y = y, label = label),
               size = 4, parse = TRUE) +
     
+  scale_y_discrete(drop=FALSE, expand=c(0.05,1))+
+    
   theme_classic() + theme(legend.position = "none",
-                          axis.text.y = element_text(colour = rev(color.axis))) +
-    custom_theme
+                          
+                          strip.text.x = element_text(size = 12),
+                          axis.text.y = element_text(colour = rev(color.axis),size = 12), 
+                          axis.text.x = element_text(size = 11),
+                          axis.title = element_text(size = 13))
+    
 )
 
 # Visualizing the effect ---------------------------------------------------
@@ -573,7 +580,8 @@ sign <- ifelse(table.plot.M0$p > 0.05, "", ifelse(table.plot.M0$p > 0.01,"", " *
     geom_vline(lty = 3, size = 0.5, col = "grey50", xintercept = 0) +
     geom_errorbar(aes(xmin = CI_low, xmax = CI_high, col = Type), width = 0)+
     geom_point(aes(col = Type, fill = Type), size = 2, pch = 21) +
-    geom_text(aes(col = Type),label = paste0(round(table.plot.M0$Beta, 3), sign, sep = "  "), vjust = - 1, size = 2.5) +
+    geom_text(aes(col = Type),
+              label = paste0(round(table.plot.M0$Beta, 3), sign, sep = "  "), vjust = - 1, size = 2.5) +
     labs(x = expression(paste("Estimated beta" %+-% "95% Confidence interval")),
          y = NULL) +
     
@@ -726,8 +734,8 @@ df.venn.M1 <- data.frame(x = c(3.2, 1, 2),
                       col.c = c("grey30","blue","violetred4"))
 
 (M1.venn <- df.venn.M1 %>% ggplot2::ggplot() + 
-      xlim(-3,6)+
-      ylim(-1,5)+
+      xlim(-4,7)+
+      ylim(-2,6)+
       ggforce::geom_circle(aes(x0 = x, y0 = y, r = 1.5, fill = col.c, color = col.c), alpha = .2, size = 1, show.legend = FALSE) + 
       scale_colour_identity() + 
       scale_fill_identity()+
@@ -739,8 +747,8 @@ df.venn.M1 <- data.frame(x = c(3.2, 1, 2),
       annotate("text", x = 4.4, y = -0.8, label ="Morphological", color = df.venn.M1$col.c[1], size = 6, fontface = "bold")+
       annotate("text", x = -0.2, y = -0.8, label ="Ecological", color = df.venn.M1$col.c[2],size = 6, fontface = "bold")+
       annotate("text", x = 2, y = 4.7, label="Cultural", color = df.venn.M1$col.c[3],size = 6, fontface = "bold") +
-      annotate("text", x = 6, y = 3.8, label=paste("Unexplained = ", M1.Unexplained), color = "black",size = 4,hjust = 1) +
-      annotate("text", x = 6, y = 3.5, label=paste("Random = ", M1.random), color = "black",size = 4,hjust = 1) +
+      annotate("text", x = 7, y = 3.8, label=paste("Unexplained = ", M1.Unexplained), color = "black",size = 4,hjust = 1) +
+      annotate("text", x = 7, y = 3.5, label=paste("Random = ", M1.random), color = "black",size = 4,hjust = 1) +
       coord_fixed() + 
       theme_void())
 
@@ -789,8 +797,8 @@ df.venn.M2 <- data.frame(x = c(3.2, 1, 2),
                       col.c = c("grey30","blue","violetred4"))
 
 (M2.venn <- df.venn.M2 %>% ggplot2::ggplot() + 
-    xlim(-3,6)+
-    ylim(-1,5)+
+    xlim(-4,7)+
+    ylim(-2,6)+
     ggforce::geom_circle(aes(x0 = x, y0 = y, r = 1.5, fill = col.c, color = col.c), alpha = .2, size = 1, show.legend = FALSE) + 
     scale_colour_identity() + 
     scale_fill_identity()+
@@ -802,8 +810,8 @@ df.venn.M2 <- data.frame(x = c(3.2, 1, 2),
     annotate("text", x = 4.4, y = -0.8, label ="Morphological", color = df.venn.M2$col.c[1], size = 6, fontface = "bold")+
     annotate("text", x = -0.2, y = -0.8, label = "Ecological", color = df.venn.M2$col.c[2],size = 6, fontface = "bold")+
     annotate("text", x = 2, y = 4.7, label="Cultural", color = df.venn.M2$col.c[3],size = 6, fontface = "bold") +
-    annotate("text", x = 6, y = 3.8, label=paste("Unexplained = ", M2.Unexplained), color = "black",size = 4,hjust = 1) +
-    annotate("text", x = 6, y = 3.5, label=paste("Random = ", M2.random), color = "black",size = 4,hjust = 1) +
+    annotate("text", x = 7, y = 3.8, label=paste("Unexplained = ", M2.Unexplained), color = "black",size = 4,hjust = 1) +
+    annotate("text", x = 7, y = 3.5, label=paste("Random = ", M2.random), color = "black",size = 4,hjust = 1) +
     coord_fixed() + 
     theme_void())
 
@@ -1002,18 +1010,18 @@ color.axis.sub <- c(rep(color_models[3],4),
     ggimage::geom_phylopic(data = data.frame(x = -4, y = 12, Model = "Arthropoda",
                                              image = "593cd880-1440-4562-b589-264cc6f9e5f2"),  
                            aes(x = x, y = y, image = image),
-                           size=.2, color = "grey20") +
+                           size=.2, color = custom_color[1]) +
     
     ggimage::geom_phylopic(data = data.frame(x = -4, y = 12, Model = "Chordata",
                                              image = "6682f694-1c10-4386-a6e5-361581400f15"),  
                            aes(x = x, y = y, image = image),
-                           size=.2, color = "grey20") +
+                           size=.2, color = custom_color[1]) +
     
     ggimage::geom_phylopic(data = data.frame(x = -4, y = 12, Model = "Tracheophyta",
                                          image = "29762b5d-82b9-4fd5-908e-986b5340cadc"),  
                            aes(x = x, y = y, image = image),
-                           size=.2, color = "grey20") +
-    scale_y_discrete(drop=FALSE, expand=c(0.05,.05))+
+                           size=.2, color = custom_color[3]) +
+    scale_y_discrete(drop=FALSE, expand=c(0.05,.08))+
   
    theme_classic() + 
    custom_theme + 
@@ -1187,8 +1195,7 @@ yplot <- db %>%
   select(log_wiki, kingdom) %>%  na.omit() %>% 
   ggdensity(x = "log_wiki", fill = "kingdom", color = "grey30",
             palette = custom_color) + coord_flip() + 
-  theme(legend.position = "none") +
-      clean_theme()
+  theme(legend.position = "none") + clean_theme()
 
 f1.panelA <- ggarrange(xplot, blankPlot, cor_plot, yplot, 
           ncol = 2, nrow = 2,  align = "hv", 
@@ -1296,7 +1303,6 @@ ggpubr::ggarrange(M1.2.forest_plot,
 
 dev.off()
 
-
 # Figure 3 ----------------------------------------------------------------
 
 pdf(file = "Figures/Figure_3.pdf", width = 12, height = 9)
@@ -1381,7 +1387,6 @@ map.fungi <- ggplot() +
   
   ggthemes::theme_map()
 
-
 pdf(file = "Figures/Figure_S1.pdf", width = 8, height = 5.5)
 ggpubr::ggarrange(map.total, map.animal, map.plantae, map.fungi,
                   common.legend = FALSE,
@@ -1440,6 +1445,6 @@ dev.off()
 
 # Figure S3 ----------------------------------------------------------------
 
-pdf(file = "Figures/Figure_S3.pdf", width = 6, height = 4.5)
+pdf(file = "Figures/Figure_S3.pdf", width = 7.5, height = 4.5)
 M0.forest_plot
 dev.off()
