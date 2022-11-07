@@ -12,11 +12,47 @@
 ## ------------------------------------------------------------------------
 
 # Colors
-
 color_models <- c("violetred4","blue","grey30")
+
 custom_color <- c("grey50", #animalia
                   "purple", #fungi
-                  "green") #plantae
+                  "darkgreen") #plantae
+
+# Variable names
+
+var.names <-  c("Intercept",
+                "Color blue [yes]",
+                "Color red [yes]",
+                "Colorful [yes]",
+                "Common name [yes]",
+                "Domain [freshwater]",
+                "Domain [marine]",
+                "Domain [terrestrial]",
+                "Harmful to humans [yes]",
+                "Human use [yes]",
+                "IUCN [endangered]",
+                "IUCN [non-endangered]",
+                "Phylogenetic distance to humans",
+                "Range size",
+                "Organism size",
+                "Family uniqueness (N° species)")
+
+var.order <- c("Intercept",
+               "Organism size",
+               "Colorful [yes]",
+               "Color blue [yes]",
+               "Color red [yes]",
+               "Range size",
+               "Family uniqueness (N° species)",
+               "Domain [freshwater]",
+               "Domain [marine]",
+               "Domain [terrestrial]",
+               "IUCN [endangered]",
+               "IUCN [non-endangered]",
+               "Common name [yes]",
+               "Human use [yes]",
+               "Harmful to humans [yes]",
+               "Phylogenetic distance to humans")
 
 # Custom theme for ggplot2
 custom_theme <- theme(#text = element_text(family = "Arial"),
