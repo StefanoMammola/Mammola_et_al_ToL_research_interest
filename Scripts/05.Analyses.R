@@ -418,6 +418,7 @@ dbRES <- na.omit(dbRES)
 M3.gam <- gam::gam(log(WIKI+1) ~ log(WOS+1), data = dbRES)
 dbRES <- data.frame(res = residuals(M3.gam), dbRES) %>% dplyr::select(-c(WOS,WIKI))
 
+citation("glmmTMB")
 # random structure
 random <- "(1 | phylum) + (1 | class) + (1 | order) + (1 | biogeography)"
 
