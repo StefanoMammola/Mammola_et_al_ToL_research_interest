@@ -116,6 +116,9 @@ custom_theme <- theme(#text = element_text(family = "Arial"),
 # 'Custom functions'
 ## ------------------------------------------------------------------------
 
+#SE
+my.SE <- function(x) sd(x, na.rm = TRUE)/sqrt(length(x))
+
 #Custom function for R2
 my.r2 <- function(model) {
   X <- model.matrix(model)

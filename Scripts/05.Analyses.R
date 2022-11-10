@@ -124,11 +124,17 @@ mutate(image = case_when(phylum == "Acanthocephala" ~ "4f117460-d00a-49e4-865f-5
 ## Variables Y ##
 
 # Summary stats
-range(db$Total_wos,na.rm = TRUE) ; median(db$Total_wos,na.rm = TRUE)
+range(db$Total_wos,na.rm = TRUE)
+median(db$Total_wos,na.rm = TRUE)
+my.SE(db$Total_wos)
 
-range(db$total_wiki_pgviews, na.rm = TRUE) ; median(db$total_wiki_pgviews, na.rm = TRUE)
-range(db$wiki_langs, na.rm = TRUE) ; median(db$wiki_langs, na.rm = TRUE)
-range(db$wiki_mean_month_pgviews, na.rm = TRUE) ; median(db$wiki_mean_month_pgviews, na.rm = TRUE)
+db[db$Total_wos == max(db$Total_wos,na.rm = T),]$genus #,most studied species: Ginko biloba
+  
+range(db$total_wiki_pgviews, na.rm = TRUE)
+median(db$total_wiki_pgviews, na.rm = TRUE)
+my.SE(db$total_wiki_pgviews)
+# range(db$wiki_langs, na.rm = TRUE) ; median(db$wiki_langs, na.rm = TRUE)
+# range(db$wiki_mean_month_pgviews, na.rm = TRUE) ; median(db$wiki_mean_month_pgviews, na.rm = TRUE)
 
 # Distribution
 ggplot(db, aes(x = Total_wos)) + geom_dotplot(binaxis='x', 
@@ -418,7 +424,6 @@ dbRES <- na.omit(dbRES)
 M3.gam <- gam::gam(log(WIKI+1) ~ log(WOS+1), data = dbRES)
 dbRES <- data.frame(res = residuals(M3.gam), dbRES) %>% dplyr::select(-c(WOS,WIKI))
 
-citation("glmmTMB")
 # random structure
 random <- "(1 | phylum) + (1 | class) + (1 | order) + (1 | biogeography)"
 
@@ -522,7 +527,7 @@ table.M <- cbind(Type = rep(var.type,3), table.M)
 table.plot <- table.M[table.M$Parameter != "Intercept",] ; table.plot = droplevels(table.plot)
 table.plot.M1.2 <- table.plot[table.plot$Model != "Residuals",]
 
-sign <- ifelse(table.plot.M1.2$p > 0.05, "", ifelse(table.plot.M1.2$p > 0.01,"", " *")) #Significance
+sign.M1.2 <- ifelse(table.plot.M1.2$p > 0.05, "", ifelse(table.plot.M1.2$p > 0.01,"", " *")) #Significance
 color.axis <- c(rep(color_models[3],4),
                 rep(color_models[2],7),
                 rep(color_models[1],4))
@@ -534,7 +539,7 @@ color.axis <- c(rep(color_models[3],4),
     geom_vline(lty = 3, size = 0.5, col = "grey50", xintercept = 0) +
     geom_errorbar(aes(xmin = CI_low, xmax = CI_high, col = Type), width = 0)+
     geom_point(aes(col = Type, fill = Type), size = 2, pch = 21) +
-    geom_text(aes(col = Type),label = paste0(round(table.plot.M1.2$Beta, 3), sign, sep = "  "), 
+    geom_text(aes(col = Type),label = paste0(round(table.plot.M1.2$Beta, 3), sign.M1.2, sep = "  "), 
               vjust = - 1, size = 3) +
     labs(x = expression(paste("Estimated beta" %+-% "95% Confidence interval")),
        y = NULL) +
@@ -576,7 +581,7 @@ color.axis <- c(rep(color_models[3],4),
 
 table.plot.M0 <- table.plot[table.plot$Model == "Residuals",]
 
-sign <- ifelse(table.plot.M0$p > 0.05, "", ifelse(table.plot.M0$p > 0.01,"", " *")) #Significance
+sign.M0 <- ifelse(table.plot.M0$p > 0.05, "", ifelse(table.plot.M0$p > 0.01,"", " *")) #Significance
 
 (M0.forest_plot <- 
     table.plot.M0 %>%
@@ -586,7 +591,7 @@ sign <- ifelse(table.plot.M0$p > 0.05, "", ifelse(table.plot.M0$p > 0.01,"", " *
     geom_errorbar(aes(xmin = CI_low, xmax = CI_high, col = Type), width = 0)+
     geom_point(aes(col = Type, fill = Type), size = 2, pch = 21) +
     geom_text(aes(col = Type),
-              label = paste0(round(table.plot.M0$Beta, 3), sign, sep = "  "), vjust = - 1, size = 2.5) +
+              label = paste0(round(table.plot.M0$Beta, 3), sign.M0, sep = "  "), vjust = - 1, size = 2.5) +
     labs(x = expression(paste("Estimated beta" %+-% "95% Confidence interval")),
          y = NULL) +
     
