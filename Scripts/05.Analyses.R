@@ -48,14 +48,30 @@ plant_png  <- png::readPNG("Phylopics/Plant.png")
 
 # Loading the database  ---------------------------------------------------
 
-db <- read.csv2(file = "./Data/SampleTREE_191022.csv", sep = '\t', dec = ',', header = TRUE, as.is = FALSE)
-db$species_name <- paste(db$genus, db$species)
+db  <- read.csv(file = "./Data/full_data.csv", sep = ',', header = TRUE, as.is = FALSE)
 
-region <- read.csv2(file = "./Data/joined_fada.csv", 
-                    sep = ',', dec = '.', header = TRUE, as.is = FALSE) %>% 
-            dplyr::select(species_name = name, biogeography = name_2)
+str(db)
+head(db,5)
 
-db <- db %>% dplyr::left_join(region, by = "species_name")
+# db  <- read.csv2(file = "./Data/SampleTREE_191022.csv", sep = '\t', dec = ',', header = TRUE, as.is = FALSE)
+# db2 <- read.csv2(file = "./Data/SampleTREE_201022_final.csv", sep = '\t', dec = ',', header = TRUE, as.is = FALSE)
+# 
+# db$species_name  <- paste(db$genus, db$species)
+# db2$species_name <- paste(db2$genus, db2$species)
+# 
+# db2 <- db2 %>% dplyr::select(species_name,"total_wiki_pgviews","wiki_langs","wiki_mean_month_pgviews")
+# 
+# db <- db %>% dplyr::select(-c("total_wiki_pgviews","wiki_langs","wiki_mean_month_pgviews"))
+# 
+# region <- read.csv2(file = "./Data/biogeography.csv", 
+#                     sep = ',', dec = '.', header = TRUE, as.is = FALSE) %>% 
+#             dplyr::select(species_name = name, biogeography = name_2)
+# 
+# db <- db %>% dplyr::left_join(region, by = "species_name")
+# 
+# db <- db %>% dplyr::left_join(db2, by = "species_name")
+# 
+# write.csv(db,"full_data.csv")
 
 length(na.omit(db$size_m))/nrow(db)
 length(na.omit(db$size_f))/nrow(db)
@@ -133,8 +149,6 @@ db[db$Total_wos == max(db$Total_wos,na.rm = T),]$genus #,most studied species: G
 range(db$total_wiki_pgviews, na.rm = TRUE)
 median(db$total_wiki_pgviews, na.rm = TRUE)
 my.SE(db$total_wiki_pgviews)
-# range(db$wiki_langs, na.rm = TRUE) ; median(db$wiki_langs, na.rm = TRUE)
-# range(db$wiki_mean_month_pgviews, na.rm = TRUE) ; median(db$wiki_mean_month_pgviews, na.rm = TRUE)
 
 # Distribution
 ggplot(db, aes(x = Total_wos)) + geom_dotplot(binaxis='x', 
@@ -308,11 +322,11 @@ performance::check_model(M1_nbinom)
 
 dev.off()
 plot(fitted(M1_nbinom))
-#identify(fitted(M1_nbinom)) #1827 
+#identify(fitted(M1_nbinom)) #1835
 
 #Refitting the model without the outlier
-dbWOS[1827,] #elephant...
-dbWOS <- dbWOS[-1827,]
+dbWOS[1835,] #elephant...
+dbWOS <- dbWOS[-1835,]
 
 M1_nbinom <- glmmTMB::glmmTMB(model.formula.WOS,
                               family = nbinom2, 
@@ -326,7 +340,7 @@ performance::check_zeroinflation(M1_nbinom)
 performance::check_model(M1_nbinom)
 
 # R^2
-(M1.R2 <- performance::r2(M1_nbinom))
+(M1.R2 <- my.r2(M1_nbinom))
 summary(M1_nbinom)
 
 ############################################################################
@@ -388,9 +402,22 @@ performance::check_collinearity(M2_nbinom)
 performance::check_zeroinflation(M2_nbinom)
 performance::check_model(M2_nbinom)
 
+# Zero inflated Negative binomial
+M2_zinb <- glmmTMB::glmmTMB(model.formula.WIKI,
+                              family = nbinom2(), 
+                              zi = ~1,
+                              data = dbWIKI)
+
+#Refitting the model without the outlier
+# dbWIKI[1593,] #Alligator
+# dbWIKI <- dbWIKI[-1593,]
+
+performance::check_collinearity(M2_zinb)
+performance::check_model(M2_zinb)
+
 # R^2
-(M2.R2 <- performance::r2(M2_nbinom))
-summary(M2_nbinom)
+(M2.R2 <- my.r2(M2_zinb))
+summary(M2_zinb)
 
 ############################################################################
 ############################################################################
@@ -442,7 +469,7 @@ M0.Res <- glmmTMB::glmmTMB(model.formula.RES, family = gaussian,
 performance::check_model(M0.Res)
 
 # R^2
-(M0.R2 <- performance::r2(M0.Res))
+(M0.R2 <- my.r2(M0.Res))
 summary(M0.Res)
 
 ############################################################################
@@ -453,7 +480,7 @@ summary(M0.Res)
 
 # Summary table
 (par.M1 <- parameters::parameters(M1_nbinom))
-(par.M2 <- parameters::parameters(M2_nbinom))
+(par.M2 <- parameters::parameters(M2_zinb))
 (par.M0 <- parameters::parameters(M0.Res))
 
 table.M1 <- par.M1 %>% dplyr::select(Parameter,
@@ -485,6 +512,8 @@ table.M2 <- par.M2 %>% dplyr::select(Parameter,
 table.M2 <- table.M2[table.M2$Effects == "fixed",] %>% 
   dplyr::select(-c(Effects)) %>% 
   na.omit()
+
+table.M2 <- table.M2[1:16,]
 
 table.M0 <- par.M0 %>% dplyr::select(Parameter,
                                      Effects,
@@ -549,7 +578,7 @@ color.axis <- c(rep(color_models[3],4),
     
     #R^2
     geom_text(data = data.frame(x = 1.8, y = 14, Model = "Web of Science",
-                                label = paste0("R^2 ==",round(as.numeric(M1.R2[2]),2))),
+                                label = paste0("R^2 ==",round(as.numeric(M1.R2[1]),2))),
               aes(x = x, y = y, label = label),
               size = 4, parse = TRUE)+
     geom_text(data = data.frame(x = 1.8, y = 13, Model = "Web of Science",
@@ -558,7 +587,7 @@ color.axis <- c(rep(color_models[3],4),
               size = 4, parse = TRUE) +
 
     geom_text(data = data.frame(x = 1.8, y = 14, Model = "Wikipedia",
-                                label = paste0("R^2 ==",round(as.numeric(M2.R2[2]),2))),
+                                label = paste0("R^2 ==",round(as.numeric(M2.R2[1]),2))),
               aes(x = x, y = y, label = label),
               size = 4, parse = TRUE)+
     geom_text(data = data.frame(x = 1.8, y = 13, Model = "Wikipedia",
@@ -600,7 +629,7 @@ sign.M0 <- ifelse(table.plot.M0$p > 0.05, "", ifelse(table.plot.M0$p > 0.01,"", 
     
     #R^2
     geom_text(data = data.frame(x = 1, y = 2,
-                                label = paste0("R^2 ==",round(as.numeric(M0.R2[2]),2))),
+                                label = paste0("R^2 ==",round(as.numeric(M0.R2[1]),2))),
               aes(x = x, y = y, label = label),
               size = 4, parse = TRUE)+
     geom_text(data = data.frame(x = 1, y = 1,
@@ -774,13 +803,13 @@ formula.antro.eco        <- as.formula(paste0("wiki ~ ",antro,"+",eco,"+",random
 formula.morpho.antro.eco <- as.formula(paste0("wiki ~ ",morpho,"+",antro,"+",eco,"+",random))
 
 #Fitting models
-M2_VPA1 <- glmmTMB::glmmTMB(formula.morpho, family = nbinom2, data = dbWIKI)#A
-M2_VPA2 <- glmmTMB::glmmTMB(formula.antro, family = nbinom2, data = dbWIKI)#B
-M2_VPA3 <- glmmTMB::glmmTMB(formula.eco, family = nbinom2, data = dbWIKI)#C
-M2_VPA4 <- glmmTMB::glmmTMB(formula.morpho.eco, family = nbinom2, data = dbWIKI)#AB
-M2_VPA5 <- glmmTMB::glmmTMB(formula.morpho.antro, family = nbinom2, data = dbWIKI)#AC
-M2_VPA6 <- glmmTMB::glmmTMB(formula.antro.eco, family = nbinom2, data = dbWIKI)#BC
-M2_VPA7 <- glmmTMB::glmmTMB(formula.morpho.antro.eco, family = nbinom2, data = dbWIKI)#ABC
+M2_VPA1 <- glmmTMB::glmmTMB(formula.morpho, family = nbinom2(), zi = ~1, data = dbWIKI)#A
+M2_VPA2 <- glmmTMB::glmmTMB(formula.antro, family = nbinom2(),  zi = ~1, data = dbWIKI)#B
+M2_VPA3 <- glmmTMB::glmmTMB(formula.eco, family = nbinom2(),  zi = ~1, data = dbWIKI)#C
+M2_VPA4 <- glmmTMB::glmmTMB(formula.morpho.eco, family = nbinom2(),  zi = ~1, data = dbWIKI)#AB
+M2_VPA5 <- glmmTMB::glmmTMB(formula.morpho.antro, family = nbinom2(),  zi = ~1, data = dbWIKI)#AC
+M2_VPA6 <- glmmTMB::glmmTMB(formula.antro.eco, family = nbinom2(),  zi = ~1, data = dbWIKI)#BC
+M2_VPA7 <- glmmTMB::glmmTMB(formula.morpho.antro.eco, family = nbinom2(),  zi = ~1, data = dbWIKI)#ABC
 
 #VPA
 M2.VPA <- modEvA::varPart(A   = as.numeric(my.r2(M2_VPA1)$R2.marginal),
@@ -1397,7 +1426,7 @@ map.fungi <- ggplot() +
   
   ggthemes::theme_map()
 
-pdf(file = "Figures/Figure_S1.pdf", width = 8, height = 5.5)
+pdf(file = "Figures/Figure_S1.pdf", width = 9, height = 6)
 ggpubr::ggarrange(map.total, map.animal, map.plantae, map.fungi,
                   common.legend = FALSE,
                   hjust = 0,

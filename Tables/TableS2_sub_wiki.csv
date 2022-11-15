@@ -1,49 +1,49 @@
 "","Type","Model","Parameter","Beta","SE","CI_low","CI_high","z","p"
-"1","Intercept","Web of Science","Intercept",0.92,0.494,-0.048,1.889,1.862,0.063
-"2","Morphological","Web of Science","Organism size",0.449,0.111,0.231,0.667,4.04,0
-"3","Morphological","Web of Science","Colorful [yes]",0.254,0.179,-0.096,0.605,1.422,0.155
-"4","Morphological","Web of Science","Color blue [yes]",0.114,0.25,-0.375,0.604,0.458,0.647
-"5","Morphological","Web of Science","Color red [yes]",-0.121,0.192,-0.497,0.256,-0.629,0.529
-"6","Ecological","Web of Science","Range size",0.6,0.057,0.487,0.712,10.466,0
-"7","Ecological","Web of Science","Domain [freshwater]",0.25,0.316,-0.369,0.869,0.793,0.428
-"8","Ecological","Web of Science","Domain [marine]",-0.277,0.278,-0.822,0.267,-0.998,0.318
-"9","Ecological","Web of Science","Domain [terrestrial]",-0.541,0.218,-0.968,-0.115,-2.488,0.013
-"10","Ecological","Web of Science","IUCN [endangered]",1.217,0.193,0.839,1.595,6.306,0
-"11","Ecological","Web of Science","IUCN [non-endangered]",0.95,0.155,0.646,1.254,6.117,0
-"12","Ecological","Web of Science","Family uniqueness (N° species)",-0.406,0.077,-0.557,-0.255,-5.263,0
-"13","Cultural","Web of Science","Common name [yes]",0.968,0.165,0.643,1.292,5.847,0
-"14","Cultural","Web of Science","Human use [yes]",1.03,0.122,0.791,1.269,8.463,0
-"15","Cultural","Web of Science","Harmful to humans [yes]",1.806,0.251,1.314,2.298,7.2,0
-"16","Cultural","Web of Science","Phylogenetic distance to humans",-0.768,0.387,-1.526,-0.011,-1.988,0.047
-"17","Intercept","Wikipedia","Intercept",6.065,0.347,5.386,6.744,17.5,0
-"18","Morphological","Wikipedia","Organism size",0.838,0.089,0.663,1.013,9.382,0
-"19","Morphological","Wikipedia","Colorful [yes]",0.924,0.136,0.657,1.191,6.781,0
-"20","Morphological","Wikipedia","Color blue [yes]",-0.746,0.176,-1.091,-0.401,-4.243,0
-"21","Morphological","Wikipedia","Color red [yes]",-0.09,0.164,-0.41,0.231,-0.548,0.584
-"22","Ecological","Wikipedia","Range size",0.192,0.036,0.121,0.263,5.309,0
-"23","Ecological","Wikipedia","Domain [freshwater]",1.009,0.31,0.401,1.617,3.251,0.001
-"24","Ecological","Wikipedia","Domain [marine]",0.266,0.28,-0.282,0.815,0.951,0.341
-"25","Ecological","Wikipedia","Domain [terrestrial]",0.248,0.204,-0.153,0.648,1.211,0.226
-"26","Ecological","Wikipedia","IUCN [endangered]",0.825,0.157,0.518,1.133,5.26,0
-"27","Ecological","Wikipedia","IUCN [non-endangered]",0.301,0.125,0.056,0.545,2.414,0.016
-"28","Ecological","Wikipedia","Family uniqueness (N° species)",-0.399,0.063,-0.522,-0.277,-6.371,0
-"29","Cultural","Wikipedia","Common name [yes]",1.436,0.138,1.165,1.706,10.392,0
-"30","Cultural","Wikipedia","Human use [yes]",0.948,0.102,0.749,1.148,9.322,0
-"31","Cultural","Wikipedia","Harmful to humans [yes]",1.651,0.226,1.207,2.095,7.291,0
-"32","Cultural","Wikipedia","Phylogenetic distance to humans",-0.742,0.263,-1.257,-0.228,-2.827,0.005
-"33","Intercept","Residuals","Intercept",-1.894,0.325,-2.531,-1.257,-5.827,0
-"34","Morphological","Residuals","Organism size",0.317,0.085,0.15,0.483,3.73,0
-"35","Morphological","Residuals","Colorful [yes]",0.256,0.136,-0.01,0.522,1.883,0.06
-"36","Morphological","Residuals","Color blue [yes]",-0.251,0.197,-0.638,0.136,-1.27,0.204
-"37","Morphological","Residuals","Color red [yes]",0.258,0.159,-0.053,0.569,1.623,0.104
-"38","Ecological","Residuals","Range size",-0.172,0.04,-0.25,-0.093,-4.284,0
-"39","Ecological","Residuals","Domain [freshwater]",0.127,0.293,-0.447,0.7,0.432,0.666
-"40","Ecological","Residuals","Domain [marine]",0.05,0.253,-0.445,0.545,0.198,0.843
-"41","Ecological","Residuals","Domain [terrestrial]",0.59,0.177,0.243,0.936,3.336,0.001
-"42","Ecological","Residuals","IUCN [endangered]",-0.177,0.163,-0.497,0.144,-1.081,0.28
-"43","Ecological","Residuals","IUCN [non-endangered]",-0.318,0.131,-0.575,-0.06,-2.417,0.016
-"44","Ecological","Residuals","Family uniqueness (N° species)",-0.127,0.06,-0.244,-0.01,-2.12,0.034
-"45","Cultural","Residuals","Common name [yes]",0.775,0.134,0.512,1.037,5.778,0
-"46","Cultural","Residuals","Human use [yes]",-0.229,0.106,-0.436,-0.022,-2.17,0.03
-"47","Cultural","Residuals","Harmful to humans [yes]",-0.195,0.235,-0.656,0.265,-0.831,0.406
-"48","Cultural","Residuals","Phylogenetic distance to humans",-0.377,0.249,-0.866,0.112,-1.511,0.131
+"1","Intercept","Web of Science","Intercept",0.922,0.495,-0.048,1.892,1.862,0.063
+"2","Morphological","Web of Science","Organism size",0.448,0.111,0.23,0.665,4.027,0
+"3","Morphological","Web of Science","Colorful [yes]",0.254,0.179,-0.096,0.604,1.424,0.154
+"4","Morphological","Web of Science","Color blue [yes]",0.117,0.25,-0.372,0.606,0.467,0.64
+"5","Morphological","Web of Science","Color red [yes]",-0.126,0.192,-0.502,0.249,-0.659,0.51
+"6","Ecological","Web of Science","Range size",0.601,0.057,0.489,0.713,10.511,0
+"7","Ecological","Web of Science","Domain [freshwater]",0.248,0.315,-0.369,0.866,0.788,0.431
+"8","Ecological","Web of Science","Domain [marine]",-0.273,0.277,-0.816,0.27,-0.985,0.325
+"9","Ecological","Web of Science","Domain [terrestrial]",-0.537,0.217,-0.963,-0.111,-2.472,0.013
+"10","Ecological","Web of Science","IUCN [endangered]",1.243,0.192,0.867,1.619,6.475,0
+"11","Ecological","Web of Science","IUCN [non-endangered]",0.983,0.154,0.68,1.285,6.367,0
+"12","Ecological","Web of Science","Family uniqueness (N° species)",-0.406,0.077,-0.557,-0.255,-5.272,0
+"13","Cultural","Web of Science","Common name [yes]",0.973,0.165,0.65,1.297,5.894,0
+"14","Cultural","Web of Science","Human use [yes]",1.026,0.122,0.788,1.264,8.434,0
+"15","Cultural","Web of Science","Harmful to humans [yes]",1.731,0.243,1.254,2.207,7.118,0
+"16","Cultural","Web of Science","Phylogenetic distance to humans",-0.778,0.384,-1.53,-0.026,-2.027,0.043
+"17","Intercept","Wikipedia","Intercept",5.961,0.362,5.252,6.67,16.48,0
+"18","Morphological","Wikipedia","Organism size",0.845,0.095,0.659,1.032,8.893,0
+"19","Morphological","Wikipedia","Colorful [yes]",0.926,0.145,0.643,1.209,6.408,0
+"20","Morphological","Wikipedia","Color blue [yes]",-0.797,0.183,-1.155,-0.439,-4.364,0
+"21","Morphological","Wikipedia","Color red [yes]",-0.146,0.173,-0.486,0.193,-0.846,0.398
+"22","Ecological","Wikipedia","Range size",0.217,0.037,0.144,0.291,5.833,0
+"23","Ecological","Wikipedia","Domain [freshwater]",0.836,0.292,0.264,1.407,2.866,0.004
+"24","Ecological","Wikipedia","Domain [marine]",0.322,0.289,-0.243,0.888,1.117,0.264
+"25","Ecological","Wikipedia","Domain [terrestrial]",0.249,0.213,-0.169,0.668,1.168,0.243
+"26","Ecological","Wikipedia","IUCN [endangered]",0.839,0.162,0.522,1.156,5.188,0
+"27","Ecological","Wikipedia","IUCN [non-endangered]",0.303,0.126,0.056,0.55,2.407,0.016
+"28","Ecological","Wikipedia","Family uniqueness (N° species)",-0.421,0.067,-0.552,-0.29,-6.289,0
+"29","Cultural","Wikipedia","Common name [yes]",1.471,0.15,1.177,1.765,9.813,0
+"30","Cultural","Wikipedia","Human use [yes]",0.965,0.108,0.753,1.177,8.929,0
+"31","Cultural","Wikipedia","Harmful to humans [yes]",1.758,0.239,1.291,2.226,7.366,0
+"32","Cultural","Wikipedia","Phylogenetic distance to humans",-0.927,0.293,-1.502,-0.353,-3.162,0.002
+"33","Intercept","Residuals","Intercept",-2.34,0.415,-3.153,-1.527,-5.64,0
+"34","Morphological","Residuals","Organism size",0.273,0.103,0.071,0.475,2.654,0.008
+"35","Morphological","Residuals","Colorful [yes]",0.514,0.161,0.197,0.83,3.182,0.001
+"36","Morphological","Residuals","Color blue [yes]",-0.555,0.234,-1.014,-0.096,-2.37,0.018
+"37","Morphological","Residuals","Color red [yes]",0.029,0.185,-0.334,0.391,0.155,0.877
+"38","Ecological","Residuals","Range size",-0.159,0.046,-0.249,-0.069,-3.452,0.001
+"39","Ecological","Residuals","Domain [freshwater]",0.125,0.333,-0.527,0.777,0.376,0.707
+"40","Ecological","Residuals","Domain [marine]",0.668,0.31,0.06,1.276,2.155,0.031
+"41","Ecological","Residuals","Domain [terrestrial]",0.485,0.223,0.047,0.923,2.172,0.03
+"42","Ecological","Residuals","IUCN [endangered]",-0.189,0.195,-0.571,0.193,-0.969,0.333
+"43","Ecological","Residuals","IUCN [non-endangered]",-0.341,0.153,-0.64,-0.041,-2.228,0.026
+"44","Ecological","Residuals","Family uniqueness (N° species)",-0.197,0.071,-0.337,-0.057,-2.753,0.006
+"45","Cultural","Residuals","Common name [yes]",0.699,0.155,0.396,1.002,4.52,0
+"46","Cultural","Residuals","Human use [yes]",-0.311,0.129,-0.564,-0.058,-2.413,0.016
+"47","Cultural","Residuals","Harmful to humans [yes]",-0.297,0.269,-0.824,0.23,-1.105,0.269
+"48","Cultural","Residuals","Phylogenetic distance to humans",-0.455,0.308,-1.058,0.149,-1.477,0.14
