@@ -286,7 +286,6 @@ dbWOS2 <- db %>% dplyr::select(WOS = Total_wos,
 
 # Missing data
 Amelia::missmap(dbWOS2)
-dbWOS <- na.omit(dbWOS2)
 
 # Setting formula ---------------------------------------------------------
 
@@ -408,16 +407,21 @@ M2_zinb <- glmmTMB::glmmTMB(model.formula.WIKI,
                               zi = ~1,
                               data = dbWIKI)
 
-#Refitting the model without the outlier
-# dbWIKI[1593,] #Alligator
-# dbWIKI <- dbWIKI[-1593,]
-
 performance::check_collinearity(M2_zinb)
 performance::check_model(M2_zinb)
+
+AIC(M2_zinb, M2_nbinom)
 
 # R^2
 (M2.R2 <- my.r2(M2_zinb))
 summary(M2_zinb)
+
+# M2_hurdle <- update(M2_zinb, ziformula = ~ ., family = truncated_nbinom2) # Hurdle model
+# performance::check_model(M2_hurdle)
+# 
+# sjPlot::plot_model(M2_hurdle, sort.est = FALSE, se = TRUE,
+#                    vline.color ="grey70",
+#                    show.values = TRUE, value.offset = .3) + theme_bw()
 
 ############################################################################
 ############################################################################
@@ -449,6 +453,9 @@ dbRES <- db %>% dplyr::select(WOS = Total_wos,
 dbRES <- na.omit(dbRES)
 
 M3.gam <- gam::gam(log(WIKI+1) ~ log(WOS+1), data = dbRES)
+summary(M3.gam)
+plot(M3.gam)
+
 dbRES <- data.frame(res = residuals(M3.gam), dbRES) %>% dplyr::select(-c(WOS,WIKI))
 
 # random structure
@@ -1118,8 +1125,9 @@ table.sub.wiki$Parameter <- factor(table.sub.wiki$Parameter, rev(var.order.sub))
 table.sub.wiki <- cbind(Type = rep(var.type.sub,3), table.sub.wiki)
 
 # Saving the table
-write.csv(table.M,"Tables/TableS2_sub_wiki.csv")
+write.csv(table.sub.wiki,"Tables/TableS3_sub_wiki.csv")
 
+citation("wosr")
 # Plotting wiki ------------------------------------------------------------------
 
 table.sub.wiki <- table.sub.wiki[table.sub.wiki$Parameter != "Intercept",] ; table.sub.wiki <- droplevels(table.sub.wiki)
@@ -1203,37 +1211,33 @@ blankPlot <- db %>% ggplot(aes(x = log(Total_wos+1),
   )
 
 cor_plot <- ggplot() + 
-  xlab("N° papers in the Web of Science [logarithm]")+
-  ylab("N° views in Wikipedia [logarithm]")+
+  xlab("N° papers in the Web of Science [log-scaled axis]")+
+  ylab("N° views in Wikipedia [log-scaled axis]")+
   geom_abline(intercept = 0, slope = 1, lty = 3, size = 0.5, col = "grey50")+
-  geom_point(data = db, aes(x = log_wos, y = log_wiki, color = kingdom),
+  geom_point(data = db, aes(x = Total_wos, y = total_wiki_pgviews, color = kingdom),
              alpha = 0.4, size = 2)+
-  geom_smooth(data = db, aes(x = log_wos, y = log_wiki),
-              method = "gam", se = T, fill = "grey30", col = "grey20", size = 0.7, alpha=0.4)+
-
-  scale_x_continuous(  
-    labels=c("0", "3", "6","9"),
-    breaks=c(0,3,6,9))+
-  
-  scale_y_continuous(  
-    labels=c("0", "5", "10","15","20"),
-    breaks=c(0,5,10,15,20))+
-  
+  geom_smooth(data = db, aes(x = Total_wos, y = total_wiki_pgviews),
+              method = "gam", se = TRUE, fill = "grey30", col = "grey20", size = 0.7, alpha=0.4)+
+  scale_x_continuous(trans = scales::pseudo_log_trans(), breaks = c(0, 10, 100, 1000, 3000, 9000)) + 
+  scale_y_continuous(trans = scales::pseudo_log_trans(), breaks = c(0, 100, 1000, 100000, 50000000)) +
   scale_color_manual("",values = custom_color)+
   theme_classic() + theme(legend.position = "none") +
   custom_theme
                           
 xplot <- db %>% 
-  select(log_wos, kingdom) %>%  na.omit() %>% 
-  ggdensity("log_wos", fill = "kingdom", color = "grey30",
+  select(Total_wos, kingdom) %>%  na.omit() %>% 
+  ggdensity("Total_wos", fill = "kingdom", color = "grey30",
             palette = custom_color) + 
+  scale_x_continuous(trans=scales::pseudo_log_trans()) +
   theme(legend.position = "none") +
      clean_theme()
 
 yplot <- db %>% 
-  select(log_wiki, kingdom) %>%  na.omit() %>% 
-  ggdensity(x = "log_wiki", fill = "kingdom", color = "grey30",
-            palette = custom_color) + coord_flip() + 
+  select(total_wiki_pgviews, kingdom) %>%  na.omit() %>% 
+  ggdensity(x = "total_wiki_pgviews", fill = "kingdom", color = "grey30",
+            palette = custom_color) + 
+  scale_x_continuous(trans=scales::pseudo_log_trans()) +
+  coord_flip() + 
   theme(legend.position = "none") + clean_theme()
 
 f1.panelA <- ggarrange(xplot, blankPlot, cor_plot, yplot, 
@@ -1439,40 +1443,42 @@ dev.off()
 
 (plotS2a <- db %>% 
    group_by(phylum) %>%
-   mutate(median_wos = median(log_wos, na.rm=T),
+   mutate(median_wos = median(Total_wos, na.rm=T),
           n = n()) %>%
    ungroup() %>%
    arrange(desc(kingdom),phylum) %>%
    mutate(phylum = factor(phylum, levels = unique(.$phylum))) %>%
-   ggplot(aes(x = log_wos, y = phylum,
+   ggplot(aes(x = Total_wos, y = phylum,
               fill = kingdom, color = kingdom)) +
    geom_point(position = position_jitter(width = 0.35), size = 1, alpha = 0.3) +
    geom_boxplot(width = .8, outlier.shape = NA, alpha = 0.2, col = "grey20") +
-   labs(x = "N° papers in the Web of Science [logarithm]", y = NULL) +
+   labs(x = "N° papers in the Web of Science [log-scaled axis]", y = NULL) +
    
    # ggimage::geom_phylopic(aes(x = 1, y = phylum, image = image),
    #                        size = .2, color = "grey20") +
     scale_color_manual(values = custom_color)+
     scale_fill_manual(values = custom_color)+
+    scale_x_continuous(trans = scales::pseudo_log_trans(), breaks = c(0, 10, 100, 1000, 10000)) + 
     theme_classic() +
     theme(legend.position = "none", axis.text.y = element_text(size = 12)))
 
-(plotS2b <- db %>% group_by(phylum) %>%
-    mutate(median_wiki = median(log_wiki, na.rm=T),
+plotS2b <- db %>% group_by(phylum) %>%
+    mutate(median_wiki = median(total_wiki_pgviews, na.rm=T),
            n = n()) %>%
     ungroup() %>%
     arrange(desc(kingdom) ,phylum) %>% 
     mutate(phylum = factor(phylum, levels = unique(.$phylum))) %>% 
-    ggplot(aes(x = log_wiki, y = phylum, fill = kingdom, color = kingdom)) +
+    ggplot(aes(x = total_wiki_pgviews, y = phylum, fill = kingdom, color = kingdom)) +
     geom_point(position = position_jitter(width = 0.35), size = 1, alpha = 0.3) +
     geom_boxplot(width = .8, outlier.shape = NA, alpha = 0.2, col = "grey20") +
-    labs(x = "N° views in Wikipedia [logarithm]", y = NULL) +
+    labs(x = "N° views in Wikipedia [log-scaled axis]", y = NULL) +
     scale_color_manual("",values = custom_color)+
     scale_fill_manual("",values = custom_color)+
+    scale_x_continuous(trans = scales::pseudo_log_trans(), breaks = c(0, 1000, 100000, 50000000)) +
     theme_classic() +
-    theme(axis.text.y = element_text(size = 12)))
+    theme(axis.text.y = element_text(size = 12))
 
-pdf(file = "Figures/Figure_S2.pdf", width = 10, height = 7)
+pdf(file = "Figures/Figure_S2.pdf", width = 12, height = 7)
 ggpubr::ggarrange(plotS2a,
                   plotS2b,
                   common.legend = FALSE,

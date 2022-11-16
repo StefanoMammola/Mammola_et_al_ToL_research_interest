@@ -1,0 +1,46 @@
+"","Type","Model","Parameter","Beta","SE","CI_low","CI_high","z","p"
+"1","Intercept","Chordata","Intercept",7.371,0.711,5.978,8.764,10.374,0
+"2","Morphological","Chordata","Organism size",1.523,0.172,1.186,1.861,8.841,0
+"3","Morphological","Chordata","Colorful [yes]",0.872,0.221,0.439,1.306,3.943,0
+"4","Morphological","Chordata","Color blue [yes]",-0.628,0.228,-1.075,-0.182,-2.759,0.006
+"5","Morphological","Chordata","Color red [yes]",-0.586,0.231,-1.038,-0.134,-2.54,0.011
+"6","Ecological","Chordata","Range size",0.446,0.055,0.337,0.554,8.051,0
+"7","Ecological","Chordata","Domain [freshwater]",2.185,0.401,1.399,2.971,5.451,0
+"8","Ecological","Chordata","Domain [marine]",0.611,0.428,-0.228,1.45,1.427,0.154
+"9","Ecological","Chordata","Domain [terrestrial]",0.094,0.206,-0.31,0.498,0.457,0.648
+"10","Ecological","Chordata","IUCN [endangered]",0.558,0.161,0.243,0.873,3.47,0.001
+"11","Ecological","Chordata","IUCN [non-endangered]",0.017,0.132,-0.241,0.276,0.129,0.897
+"12","Ecological","Chordata","Genus uniqueness (N° species)",-0.224,0.07,-0.361,-0.087,-3.209,0.001
+"13","Cultural","Chordata","Common name [yes]",0.733,0.338,0.07,1.395,2.166,0.03
+"14","Cultural","Chordata","Human use [yes]",0.635,0.111,0.418,0.852,5.73,0
+"15","Cultural","Chordata","Harmful to humans [yes]",1.241,0.328,0.598,1.884,3.784,0
+"16","Intercept","Arthropoda","Intercept",6.125,0.959,4.245,8.004,6.387,0
+"17","Morphological","Arthropoda","Organism size",0.993,0.247,0.508,1.477,4.016,0
+"18","Morphological","Arthropoda","Colorful [yes]",0.866,0.323,0.232,1.5,2.679,0.007
+"19","Morphological","Arthropoda","Color blue [yes]",-0.089,0.486,-1.041,0.863,-0.183,0.855
+"20","Morphological","Arthropoda","Color red [yes]",0.068,0.413,-0.742,0.878,0.165,0.869
+"21","Ecological","Arthropoda","Range size",0.108,0.081,-0.051,0.266,1.332,0.183
+"22","Ecological","Arthropoda","Domain [freshwater]",-0.404,0.925,-2.218,1.409,-0.437,0.662
+"23","Ecological","Arthropoda","Domain [marine]",-0.197,0.925,-2.01,1.616,-0.213,0.831
+"24","Ecological","Arthropoda","Domain [terrestrial]",-0.165,0.847,-1.826,1.496,-0.195,0.846
+"25","Ecological","Arthropoda","IUCN [endangered]",1.934,1.173,-0.365,4.233,1.649,0.099
+"26","Ecological","Arthropoda","IUCN [non-endangered]",-0.353,0.674,-1.675,0.968,-0.524,0.6
+"27","Ecological","Arthropoda","Genus uniqueness (N° species)",-0.16,0.088,-0.332,0.011,-1.831,0.067
+"28","Cultural","Arthropoda","Common name [yes]",1.21,0.25,0.72,1.7,4.844,0
+"29","Cultural","Arthropoda","Human use [yes]",3.317,0.775,1.798,4.836,4.281,0
+"30","Cultural","Arthropoda","Harmful to humans [yes]",2.254,0.452,1.367,3.14,4.981,0
+"110","Intercept","Tracheophyta","Intercept",4.679,1.432,1.872,7.487,3.267,0.001
+"210","Morphological","Tracheophyta","Organism size",0.278,0.201,-0.115,0.671,1.389,0.165
+"31","Morphological","Tracheophyta","Colorful [yes]",0.363,0.304,-0.233,0.96,1.194,0.233
+"41","Morphological","Tracheophyta","Color blue [yes]",-0.047,0.485,-0.997,0.902,-0.098,0.922
+"51","Morphological","Tracheophyta","Color red [yes]",0.455,0.35,-0.232,1.142,1.298,0.194
+"61","Ecological","Tracheophyta","Range size",0.497,0.139,0.224,0.77,3.567,0
+"72","Ecological","Tracheophyta","Domain [freshwater]",NA,NA,NA,NA,NA,NA
+"82","Ecological","Tracheophyta","Domain [marine]",NA,NA,NA,NA,NA,NA
+"71","Ecological","Tracheophyta","Domain [terrestrial]",1.218,1.046,-0.833,3.269,1.164,0.244
+"81","Ecological","Tracheophyta","IUCN [endangered]",2.386,0.619,1.173,3.598,3.856,0
+"91","Ecological","Tracheophyta","IUCN [non-endangered]",1.836,0.478,0.899,2.773,3.842,0
+"101","Ecological","Tracheophyta","Genus uniqueness (N° species)",-0.089,0.119,-0.321,0.143,-0.752,0.452
+"111","Cultural","Tracheophyta","Common name [yes]",1.345,0.351,0.657,2.033,3.829,0
+"121","Cultural","Tracheophyta","Human use [yes]",0.901,0.312,0.29,1.512,2.891,0.004
+"131","Cultural","Tracheophyta","Harmful to humans [yes]",0.018,0.614,-1.187,1.222,0.029,0.977
