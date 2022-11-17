@@ -93,6 +93,7 @@ db$color_blu        <- as.factor(db$color_blu)
 db$color_red        <- as.factor(db$color_red)
 db$biogeography     <- as.factor(db$biogeography)
 
+
 # Adding silouhettes for each phylum ---------------------------------------------
 
 db <- db %>% 
@@ -143,6 +144,8 @@ mutate(image = case_when(phylum == "Acanthocephala" ~ "4f117460-d00a-49e4-865f-5
 range(db$Total_wos,na.rm = TRUE)
 median(db$Total_wos,na.rm = TRUE)
 my.SE(db$Total_wos)
+
+table(ifelse(db$Total_wos > 0, 1, 0))/nrow(db)
 
 db[db$Total_wos == max(db$Total_wos,na.rm = T),]$genus #,most studied species: Ginko biloba
   
@@ -1213,7 +1216,7 @@ blankPlot <- db %>% ggplot(aes(x = log(Total_wos+1),
 cor_plot <- ggplot() + 
   xlab("N° papers in the Web of Science [log-scaled axis]")+
   ylab("N° views in Wikipedia [log-scaled axis]")+
-  geom_abline(intercept = 0, slope = 1, lty = 3, size = 0.5, col = "grey50")+
+  geom_abline(intercept = 0, slope = 2, lty = 3, size = 0.5, col = "grey50")+
   geom_point(data = db, aes(x = Total_wos, y = total_wiki_pgviews, color = kingdom),
              alpha = 0.4, size = 2)+
   geom_smooth(data = db, aes(x = Total_wos, y = total_wiki_pgviews),
