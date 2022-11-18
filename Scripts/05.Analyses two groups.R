@@ -314,7 +314,7 @@ dbWIKI2 <- db %>% dplyr::select(wiki = total_wiki_pgviews,
 
 # Missing data
 Amelia::missmap(dbWIKI2)
-dbWIKI <- na.omit(dbWIKI2)
+dbWIKI <- dbWIKI2 %>% na.omit()
 
 # Setting formula ---------------------------------------------------------
 
@@ -356,10 +356,11 @@ performance::check_model(M2_zinb)
 
 dev.off()
 plot(fitted(M2_zinb))
-#identify(fitted(M2_zinb)) #1836
+#identify(fitted(M2_zinb)) #124
 
 #Refitting the model without the outlier
-dbWIKI[124,] #Crocodylia
+na.omit(data.frame(db$genus,db$species,dbWIKI2))[124,]
+#Crocodylia
 dbWIKI <- dbWIKI[-124,]
 
 # Refetting the Zero-inflated Negative binomial
@@ -1391,6 +1392,6 @@ dev.off()
 
 # Figure S3 ----------------------------------------------------------------
 
-pdf(file = "Figures/Figure_S3.pdf", width = 7.5, height = 4.5)
+pdf(file = "Figures/Figure_S3.pdf", width = 7.5, height = 5.5)
 M0.forest_plot
 dev.off()
