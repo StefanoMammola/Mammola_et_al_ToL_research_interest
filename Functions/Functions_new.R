@@ -12,7 +12,7 @@
 ## ------------------------------------------------------------------------
 
 # Colors
-color_models <- c("violetred4","blue","grey30")
+color_models <- c("violetred4","blue")
   
 custom_color <- c("grey50",    # animalia
                   "purple",    # fungi
@@ -20,8 +20,6 @@ custom_color <- c("grey50",    # animalia
 
 # Variable names
 var.names <-  c("Intercept",
-                "Color blue [yes]",
-                "Color red [yes]",
                 "Colorful [yes]",
                 "Common name [yes]",
                 "Domain [freshwater]",
@@ -34,15 +32,13 @@ var.names <-  c("Intercept",
                 "Phylogenetic distance to humans",
                 "Range size",
                 "Organism size",
-                "Family uniqueness (N° species)")
+                "Taxonomic uniqueness (Family)")
 
 var.order <- c("Intercept",
                "Organism size",
                "Colorful [yes]",
-               "Color blue [yes]",
-               "Color red [yes]",
                "Range size",
-               "Family uniqueness (N° species)",
+               "Taxonomic uniqueness (Family)",
                "Domain [freshwater]",
                "Domain [marine]",
                "Domain [terrestrial]",
@@ -54,8 +50,6 @@ var.order <- c("Intercept",
                "Phylogenetic distance to humans")
 
 var.names.sub <-  c("Intercept",
-                    "Color blue [yes]",
-                    "Color red [yes]",
                     "Colorful [yes]",
                     "Common name [yes]",
                     "Domain [freshwater]",
@@ -67,15 +61,13 @@ var.names.sub <-  c("Intercept",
                     "IUCN [non-threatened]",
                     "Range size",
                     "Organism size",
-                    "Genus uniqueness (N° species)")
+                    "Taxonomic uniqueness (Genus)")
 
 var.order.sub <- c("Intercept",
                    "Organism size",
                    "Colorful [yes]",
-                   "Color blue [yes]",
-                   "Color red [yes]",
                    "Range size",
-                   "Genus uniqueness (N° species)",
+                   "Taxonomic uniqueness (Genus)",
                    "Domain [freshwater]",
                    "Domain [marine]",
                    "Domain [terrestrial]",
