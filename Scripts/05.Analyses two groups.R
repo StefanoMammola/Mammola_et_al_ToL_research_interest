@@ -607,7 +607,7 @@ sign.M0 <- ifelse(table.plot.M0$p > 0.05, "", ifelse(table.plot.M0$p > 0.01,"", 
     annotate("text", x = 0.2, y = 14.5, hjust = 0, vjust = 0.5,
              size = 3,
              color = "grey30",
-             label = "Popular interest")+
+             label = "Societal interest")+
     
     annotate("segment", x = -0.1, xend = -1, y = 14, yend = 14,
              color = "grey30",
@@ -1182,7 +1182,7 @@ f1.panelB <- dbRES %>%
   annotate("text", x = 0.5, y = 31, hjust = 0, vjust = 0.5,
            size = 3,
            color = "grey30",
-           label = "Popular interest")+
+           label = "Societal interest")+
   
   annotate("segment", x = -0.5, xend = -3.5, y = 30.3, yend = 30.3,
            color = "grey30",
