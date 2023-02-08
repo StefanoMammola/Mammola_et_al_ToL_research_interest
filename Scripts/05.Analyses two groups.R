@@ -402,13 +402,13 @@ dbRES <- db %>% dplyr::select(WOS = Total_wos,
                               harmful_to_human,
                               scaled_log_distance_human) 
 
-dbRES <- na.omit(dbRES)
-
 M3.gam <- gam::gam(log(WIKI+1) ~ log(WOS+1), data = dbRES)
 summary(M3.gam)
 plot(M3.gam)
 
 dbRES <- data.frame(res = residuals(M3.gam), dbRES) %>% dplyr::select(-c(WOS,WIKI))
+
+dbRES <- na.omit(dbRES)
 
 # random structure
 random <- "(1 | phylum) + (1 | class) + (1 | order) + (1 | biogeography)"
@@ -489,13 +489,15 @@ table.M0 <- table.M0[table.M0$Effects == "fixed",] %>%
   dplyr::select(-c(Effects)) %>% 
   na.omit()
 
+
+# What is the correlation between Scientific and societal interest estimates?
 table.M <- cbind(Model = c(rep("Web of Science",nrow(table.M1)),
                            rep("Wikipedia",nrow(table.M2)),
                            rep("Residuals",nrow(table.M0))),
                  rbind(table.M1,table.M2,table.M0)) ; rm(table.M1,table.M2,table.M0)
                  
 table.M$Parameter <- as.factor(as.character(table.M$Parameter))
-table.M$Model <- as.factor(as.character(table.M$Model))
+table.M$Model     <- as.factor(as.character(table.M$Model))
 
 levels(table.M$Parameter) <- var.names
 table.M$Parameter <- factor(table.M$Parameter, rev(var.order)) #Sort
