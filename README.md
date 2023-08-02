@@ -19,7 +19,7 @@ Functions.R: this R file is sourced during analyses providing custom fuctions an
 - Folder "Data":
 
 SampleTREE.csv + SampleTREE.xlsx: Initially sampled species
-SampleTREE_TraitCompiled.csv: Sample species + compiled traits (this is the database needed to reproduce analyses)
+SampleTREE_TraitCompiled.csv: Sample species with compiled traits (this is the database needed to reproduce analyses)
 sel_rareas.rds: needed to run script "04.GetWoSdata.R"
 
 - Folder "Phylopics":
