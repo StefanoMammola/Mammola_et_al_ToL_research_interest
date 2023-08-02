@@ -22,6 +22,8 @@ SampleTREE.csv + SampleTREE.xlsx: Initially sampled species
 SampleTREE_TraitCompiled.csv: Sample species with compiled traits (this is the database needed to reproduce analyses)
 sel_rareas.rds: needed to run script "04.GetWoSdata.R"
 
+[See read_me.pdf for the description of the data]
+
 - Folder "Phylopics":
 
 Provides the .png of animal, plant, and fungi silhouettes used in figures. Silhouettes were taken from PhyloPics (http://phylopic.org/) - all with open licence.
