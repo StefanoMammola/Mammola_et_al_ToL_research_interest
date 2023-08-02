@@ -13,20 +13,20 @@
 "12","Cultural trait","Web of Science","Human use [yes]",1.026,0.121,0.788,1.264,8.456,0
 "13","Cultural trait","Web of Science","Harmful to humans [yes]",1.732,0.243,1.257,2.208,7.139,0
 "14","Cultural trait","Web of Science","Phylogenetic distance to humans",-0.73,0.382,-1.479,0.02,-1.907,0.056
-"15","Intercept","Wikipedia","Intercept",5.973,0.354,5.28,6.666,16.891,0
-"16","Species trait","Wikipedia","Organism size",0.844,0.096,0.657,1.032,8.841,0
-"17","Species trait","Wikipedia","Colorful [yes]",0.744,0.125,0.498,0.99,5.932,0
+"15","Intercept","Wikipedia","Intercept",5.973,0.355,5.278,6.668,16.837,0
+"16","Species trait","Wikipedia","Organism size",0.844,0.096,0.657,1.032,8.827,0
+"17","Species trait","Wikipedia","Colorful [yes]",0.744,0.125,0.498,0.99,5.931,0
 "18","Species trait","Wikipedia","Range size",0.214,0.037,0.14,0.287,5.701,0
 "19","Species trait","Wikipedia","Domain [freshwater]",0.827,0.291,0.256,1.398,2.838,0.005
-"20","Species trait","Wikipedia","Domain [marine]",0.3,0.287,-0.261,0.862,1.048,0.295
+"20","Species trait","Wikipedia","Domain [marine]",0.3,0.287,-0.262,0.862,1.047,0.295
 "21","Species trait","Wikipedia","Domain [terrestrial]",0.248,0.214,-0.172,0.668,1.157,0.247
 "22","Species trait","Wikipedia","Taxonomic uniqueness (Family)",-0.416,0.067,-0.548,-0.284,-6.186,0
 "23","Cultural trait","Wikipedia","IUCN [threatened]",0.841,0.162,0.522,1.159,5.176,0
-"24","Cultural trait","Wikipedia","IUCN [non-threatened]",0.303,0.126,0.055,0.55,2.397,0.017
-"25","Cultural trait","Wikipedia","Common name [yes]",1.491,0.15,1.196,1.785,9.919,0
-"26","Cultural trait","Wikipedia","Human use [yes]",0.985,0.109,0.771,1.199,9.028,0
+"24","Cultural trait","Wikipedia","IUCN [non-threatened]",0.303,0.126,0.055,0.551,2.397,0.017
+"25","Cultural trait","Wikipedia","Common name [yes]",1.491,0.15,1.196,1.786,9.913,0
+"26","Cultural trait","Wikipedia","Human use [yes]",0.985,0.109,0.771,1.199,9.027,0
 "27","Cultural trait","Wikipedia","Harmful to humans [yes]",1.827,0.242,1.354,2.301,7.56,0
-"28","Cultural trait","Wikipedia","Phylogenetic distance to humans",-0.957,0.287,-1.519,-0.395,-3.337,0.001
+"28","Cultural trait","Wikipedia","Phylogenetic distance to humans",-0.957,0.289,-1.523,-0.391,-3.315,0.001
 "29","Intercept","Residuals","Intercept",-1.94,0.423,-2.768,-1.112,-4.592,0
 "30","Species trait","Residuals","Organism size",0.249,0.107,0.04,0.458,2.336,0.019
 "31","Species trait","Residuals","Colorful [yes]",0.423,0.137,0.155,0.692,3.088,0.002

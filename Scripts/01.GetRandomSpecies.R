@@ -1,5 +1,5 @@
 ## ------------------------------------------------------------------------
-## 'Species popularity and research interests across the Tree of Life' 
+## 'Drivers of species knowledge across the Tree of Life' 
 ## ------------------------------------------------------------------------
 
 ##################
@@ -237,6 +237,6 @@ SampleTree <- SampleTree[-1,] #removing the first row
 SampleTree <- SampleTree[ !(SampleTree$name) %in% c(fossil_sp),] #removing fossils 
 
 # Save
-write.csv2(SampleTre, "./Data/SampleTree.csv", row.names = F)
+write.csv2(SampleTree, "./Data/SampleTree.csv", row.names = F)
 
 #end

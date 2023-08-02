@@ -1,5 +1,5 @@
 ## ------------------------------------------------------------------------
-## 'Species popularity and research interests across the Tree of Life' 
+## 'Drivers of species knowledge across the Tree of Life' 
 ## ------------------------------------------------------------------------
 
 ##################

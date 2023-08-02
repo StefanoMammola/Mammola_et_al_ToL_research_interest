@@ -1,5 +1,5 @@
 ## ------------------------------------------------------------------------
-## 'Species popularity and research interests across the Tree of Life' 
+## 'Drivers of species knowledge across the Tree of Life' 
 ## ------------------------------------------------------------------------
 
 ##################
@@ -9,7 +9,6 @@
 
 # Script to extract data from IUCN
 
-citation("rgbif")
 # Loading R packages ------------------------------------------------------
 
 library("httr")       #<---- to set internet settings
