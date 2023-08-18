@@ -35,7 +35,7 @@ library("tidyverse")
 
 # Custom functions & plot parameters --------------------------------------
 
-source("Functions/Functions.r")
+source("Functions/Functions.R")
 
 # Loading silhouettes ------------------------------------------------------
 
@@ -47,22 +47,12 @@ plant_png  <- png::readPNG("Phylopics/Plant.png")
 
 # Loading the database  ---------------------------------------------------
 
-db  <- read.csv(file = "./Data/SampleTREE_TraitCompiled.csv", sep = ',', header = TRUE, as.is = FALSE)
+db  <- read.csv(file = "./Data/SampleTREE_TraitCompiled.csv", sep = '\t', dec = ',', header = TRUE, as.is = FALSE)
 
 str(db)
 head(db,5)
 
-length(na.omit(db$size_m))/nrow(db)
-length(na.omit(db$size_f))/nrow(db)
-length(na.omit(db$photo_google))/nrow(db)
-
-#% missing centroids
-length(na.omit(db[db$kingdom == "Animalia",]$centroid_lat))/nrow(db[db$kingdom == "Animalia",])
-length(na.omit(db[db$kingdom == "Plantae",]$centroid_lat))/nrow(db[db$kingdom == "Plantae",])
-length(na.omit(db[db$kingdom == "Fungi",]$centroid_lat))/nrow(db[db$kingdom == "Fungi",])
-length(na.omit(db$centroid_lat))/nrow(db)
-
-# Converting factors to factors
+# Converting classes
 db$model_organism   <- as.factor(db$model_organism)
 db$harmful_to_human <- as.factor(db$harmful_to_human)
 db$human_use        <- as.factor(db$human_use)
@@ -227,7 +217,10 @@ dbWOS2 <- db %>% dplyr::select(WOS = Total_wos,
                                common_name,
                                human_use,
                                harmful_to_human,
-                               scaled_log_distance_human) 
+                               scaled_log_distance_human,
+                               centroid_lat,
+                               centroid_long
+                               ) 
 
 # Missing data
 Amelia::missmap(dbWOS2)
