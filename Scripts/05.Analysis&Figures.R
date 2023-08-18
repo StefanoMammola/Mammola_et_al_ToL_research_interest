@@ -16,6 +16,7 @@
 # Loading R packages ------------------------------------------------------
 
 library("Amelia")
+library("DHARMa")
 library("dplyr")
 library("ggdist")
 library("ggforce")
@@ -208,6 +209,8 @@ dbWOS2 <- db %>% dplyr::select(WOS = Total_wos,
                                order,
                                family,
                                biogeography,
+                               centroid_lat,
+                               centroid_long,
                                scaled_size,
                                colorful,
                                scaled_range_size,
@@ -217,10 +220,7 @@ dbWOS2 <- db %>% dplyr::select(WOS = Total_wos,
                                common_name,
                                human_use,
                                harmful_to_human,
-                               scaled_log_distance_human,
-                               centroid_lat,
-                               centroid_long
-                               ) 
+                               scaled_log_distance_human) 
 
 # Missing data
 Amelia::missmap(dbWOS2)
@@ -234,7 +234,7 @@ random <- "(1 | phylum) + (1 | class) + (1 | order) + (1 | biogeography)"
 
 #formula
 model.formula.WOS <- as.formula(paste0("WOS ~",
-                                   paste(colnames(dbWOS)[8:ncol(dbWOS)], collapse = " + "),
+                                   paste(colnames(dbWOS)[10:ncol(dbWOS)], collapse = " + "),
                                    "+",
                                    random))
 
@@ -276,6 +276,27 @@ performance::check_collinearity(M1_nbinom)
 performance::check_zeroinflation(M1_nbinom)
 performance::check_model(M1_nbinom)
 
+# # Is there spatial autocorrelation? Checking based on reviewer #1
+# 
+# # Calculating residuals per Group to test spatial autocorrelation
+# res   <- DHARMa::simulateResiduals(M1_nbinom)
+# 
+# #DHARMa::testSpatialAutocorrelation(res, dbWOS$centroid_long, dbWOS$centroid_lat, plot = FALSE)
+# # gives an error... no unique coordinates, we need to group for something
+# 
+# res2  <- DHARMa::recalculateResiduals(res, group = dbWOS$biogeography)
+# 
+# # Calculating x, y positions per group
+# groupLocations <- aggregate(data.frame(cbind(dbWOS$centroid_long,dbWOS$centroid_lat)),
+#                            list(dbWOS$biogeography), mean)
+# colnames(groupLocations) <- c("group", "x", "y")
+# 
+# DHARMa::testSpatialAutocorrelation(res, dbWOS$centroid_long, dbWOS$centroid_lat, plot = FALSE)
+# 
+# DHARMa::testSpatialAutocorrelation(res2, groupLocations$x, groupLocations$y, plot = FALSE)
+# 
+# rm(res2,res,groupLocations)
+
 # R^2
 (M1.R2 <- my.r2(M1_nbinom))
 summary(M1_nbinom)
@@ -293,6 +314,8 @@ dbWIKI2 <- db %>% dplyr::select(wiki = total_wiki_pgviews,
                                 order,
                                 family,
                                 biogeography,
+                                centroid_lat,
+                                centroid_long,
                                 scaled_size,
                                 colorful,
                                 scaled_range_size,
@@ -311,7 +334,7 @@ dbWIKI <- dbWIKI2 %>% na.omit()
 # Setting formula ---------------------------------------------------------
 
 model.formula.WIKI <- as.formula(paste0("wiki ~",
-                                        paste(colnames(dbWIKI)[8:ncol(dbWIKI)], collapse = " + "),
+                                        paste(colnames(dbWIKI)[10:ncol(dbWIKI)], collapse = " + "),
                                         "+",
                                         random))
 
@@ -364,6 +387,22 @@ M2_zinb <- glmmTMB::glmmTMB(model.formula.WIKI,
 # Model validation
 performance::check_collinearity(M2_zinb)
 performance::check_model(M2_zinb)
+
+# # Is there spatial autocorrelation? Checking based on reviewer #1
+# 
+# # Calculating residuals per Group to test spatial autocorrelation
+# res   <- DHARMa::simulateResiduals(M2_zinb)
+# res2  <- DHARMa::recalculateResiduals(res, group = dbWIKI$biogeography)
+# res2$group
+# #
+# # Calculating x, y positions per group
+# groupLocations <- aggregate(data.frame(cbind(dbWIKI$centroid_long,dbWIKI$centroid_lat)),
+#                             list(dbWIKI$biogeography), mean)
+# colnames(groupLocations) <- c("group", "x", "y")
+# 
+# DHARMa::testSpatialAutocorrelation(res2, groupLocations$x, groupLocations$y, plot = FALSE)
+# 
+# rm(res2,res,groupLocations)
 
 # R^2
 (M2.R2 <- my.r2(M2_zinb))
@@ -1357,14 +1396,31 @@ plotS2b <- db %>% group_by(phylum) %>%
     theme_classic() +
     theme(axis.text.y = element_text(size = 12))
 
-pdf(file = "Figures/Figure_S2.pdf", width = 12, height = 7)
+db.bar <- data.frame(table(db$kingdom,db$phylum))
+colnames(db.bar) <- c("kingdom", "phylum", "n")
+db.bar <- db.bar[db.bar$n != 0,]
+
+(plotS2c <- db.bar %>%
+  arrange(desc(kingdom),phylum) %>%
+  mutate(phylum = factor(phylum, levels = unique(.$phylum))) %>%
+  ggplot(aes(x = n, y = phylum,
+             fill = kingdom, color = kingdom))+
+  geom_bar(stat = "identity")+
+  labs(y = NULL)+
+  scale_color_manual(values = custom_color)+
+  scale_fill_manual(values = custom_color)+
+  theme_classic() +
+  theme(legend.position = "none", axis.text.y = element_text(size = 12)))
+
+pdf(file = "Figures/Figure_S2.pdf", width = 16, height = 7)
 ggpubr::ggarrange(plotS2a,
                   plotS2b,
+                  plotS2c,
                   common.legend = FALSE,
                   hjust = -0.5,
                   align = "h",
-                  labels = c("A", "B"),
-                  ncol=2, nrow=1) 
+                  labels = c("A", "B", "C"),
+                  ncol=3, nrow=1) 
 dev.off()
 
 # Figure S3 ----------------------------------------------------------------
