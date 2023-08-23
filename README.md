@@ -1,6 +1,6 @@
 Data and R script to reproduce the analyses in:
 
-Mammola S., et al. (2023) Drivers of species knowledge across the Tree of Life. eLife
+Mammola S., et al. (2023) Drivers of species knowledge across the Tree of Life. eLife, https://doi.org/10.7554/eLife.88251.1
  
 - Folder "Scripts":
 
@@ -10,11 +10,11 @@ Mammola S., et al. (2023) Drivers of species knowledge across the Tree of Life. 
 04.GetWoSdata.R: Extract data from the Web of Science
 05.Analysis&Figures.R Reproduce analyses and figures
 
-[Note that script 01 - 04 are provided to illustrate the procedure of sampling data. All analyses and figures can be ran simply using the "05.Analysis&Figures.R" and associated data]
+[Note that scripts 01 - 04 are provided to illustrate the procedure of sampling data. All analyses and figures can be run simply using the "05.Analysis&Figures.R" and associated data]
 
 - Folder "Functions":
 
-Functions.R: this R file is sourced during analyses providing custom fuctions and plot parameters.
+Functions.R: this R file is sourced during analyses providing custom functions and plot parameters.
 
 - Folder "Data":
 
@@ -26,7 +26,7 @@ sel_rareas.rds: needed to run script "04.GetWoSdata.R"
 
 - Folder "Phylopics":
 
-Provides the .png of animal, plant, and fungi silhouettes used in figures. Silhouettes were taken from PhyloPics (http://phylopic.org/) - all with open licence.
+Provides the .png of animal, plant, and fungi silhouettes used in figures. Silhouettes were taken from PhyloPics (http://phylopic.org/) - all with an open licence.
 
 - Folder "Figures" and "Tables":
 
